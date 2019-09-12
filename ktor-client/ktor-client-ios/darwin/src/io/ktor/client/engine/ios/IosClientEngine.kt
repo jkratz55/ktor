@@ -6,7 +6,6 @@ package io.ktor.client.engine.ios
 
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
-import io.ktor.client.engine.ios.toByteArray
 import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.http.*
