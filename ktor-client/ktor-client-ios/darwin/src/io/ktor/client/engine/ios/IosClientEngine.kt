@@ -12,10 +12,10 @@ import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.util.*
 import io.ktor.util.date.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
 import platform.CFNetwork.*
 import platform.Foundation.*
 import platform.darwin.*
@@ -122,6 +122,10 @@ internal class IosClientEngine(override val config: IosClientEngineConfig) : Htt
 
             config.requestConfig(nativeRequest)
             session.dataTaskWithRequest(nativeRequest).resume()
+        }
+
+        callContext[Job]?.invokeOnCompletion {
+            session.finishTasksAndInvalidate()
         }
     }
 
