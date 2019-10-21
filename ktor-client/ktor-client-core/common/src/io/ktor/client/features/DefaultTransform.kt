@@ -6,7 +6,7 @@ package io.ktor.client.features
 
 import io.ktor.client.*
 import io.ktor.client.request.*
-import io.ktor.client.response.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.utils.io.*
@@ -29,8 +29,7 @@ fun HttpClient.defaultTransformers() {
                 val contentType = context.headers[HttpHeaders.ContentType]?.let {
                     context.headers.remove(HttpHeaders.ContentType)
                     ContentType.parse(it)
-                }
-                    ?: ContentType.Text.Plain
+                } ?: ContentType.Text.Plain
 
                 proceedWith(TextContent(body, contentType))
             }
@@ -48,27 +47,22 @@ fun HttpClient.defaultTransformers() {
 
         when (info.type) {
             Unit::class -> {
-                response.close()
+                body.cancel()
                 proceedWith(HttpResponseContainer(info, Unit))
+            }
+            Int::class -> {
+                proceedWith(HttpResponseContainer(info, body.readRemaining().readText().toInt()))
             }
             ByteReadPacket::class,
             Input::class -> {
-                try {
-                    proceedWith(HttpResponseContainer(info, body.readRemaining()))
-                } finally {
-                    response.close()
-                }
+                proceedWith(HttpResponseContainer(info, body.readRemaining()))
             }
             ByteArray::class -> {
-                try {
-                    val readRemaining = body.readRemaining(contentLength)
-                    proceedWith(HttpResponseContainer(info, readRemaining.readBytes()))
-                } finally {
-                    response.close()
-                }
+                val readRemaining = body.readRemaining(contentLength)
+                proceedWith(HttpResponseContainer(info, readRemaining.readBytes()))
             }
             HttpStatusCode::class -> {
-                response.close()
+                body.cancel()
                 proceedWith(HttpResponseContainer(info, response.status))
             }
         }

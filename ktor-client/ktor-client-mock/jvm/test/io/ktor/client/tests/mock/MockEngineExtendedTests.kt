@@ -9,6 +9,7 @@ import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.mock.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.content.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
@@ -41,15 +42,15 @@ class MockEngineExtendedTests {
 
         val client = HttpClient(mockEngine)
 
-        client.call("http://127.0.0.1") {
+        client.request<HttpStatement>("http://127.0.0.1") {
             header("header", "first")
             body = "body"
-        }
+        }.execute()
 
-        client.call("https://127.0.0.02") {
+        client.request<HttpStatement>("https://127.0.0.02") {
             header("header", "second")
             body = "secured"
-        }
+        }.execute()
 
         val firstCall = mockEngine.requestHistory[0]
         val secondCall = mockEngine.requestHistory[1]

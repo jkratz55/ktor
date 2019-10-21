@@ -6,12 +6,8 @@ package io.ktor.client.call
 
 import io.ktor.client.*
 import io.ktor.client.request.*
-import io.ktor.client.response.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.CancellationException
-import io.ktor.utils.io.*
 
 
 @Suppress("KDocMissingDocumentation")
@@ -27,38 +23,37 @@ class UnsupportedUpgradeProtocolException(
  * Constructs a [HttpClientCall] from this [HttpClient] and
  * with the specified HTTP request [builder].
  */
-suspend fun HttpClient.call(builder: HttpRequestBuilder): HttpClientCall = call { takeFrom(builder) }
+@Deprecated(
+    "",
+    level = DeprecationLevel.ERROR,
+    replaceWith = ReplaceWith("this.request<HttpStatement>(builder)", "io.ktor.client.statement.HttpStatement")
+)
+suspend fun HttpClient.call(builder: HttpRequestBuilder): HttpClientCall = TODO()
 
 /**
  * Constructs a [HttpClientCall] from this [HttpClient],
  * an [url] and an optional [block] configuring a [HttpRequestBuilder].
  */
+@Deprecated(
+    "",
+    level = DeprecationLevel.ERROR,
+    replaceWith = ReplaceWith("this.request<HttpStatement>(urlString, block)", "io.ktor.client.statement.HttpStatement")
+)
 suspend fun HttpClient.call(
     urlString: String,
     block: suspend HttpRequestBuilder.() -> Unit = {}
-): HttpClientCall = call {
-    url.takeFrom(urlString)
-    block()
-}
+): HttpClientCall = TODO()
 
 /**
  * Constructs a [HttpClientCall] from this [HttpClient],
  * an [url] and an optional [block] configuring a [HttpRequestBuilder].
  */
+@Deprecated(
+    "",
+    level = DeprecationLevel.ERROR,
+    replaceWith = ReplaceWith("this.request<HttpStatement>(url, block)", "io.ktor.client.statement.HttpStatement")
+)
 suspend fun HttpClient.call(
     url: Url,
     block: suspend HttpRequestBuilder.() -> Unit = {}
-): HttpClientCall = call {
-    this.url.takeFrom(url)
-    block()
-}
-
-internal fun HttpResponse.channelWithCloseHandling(): ByteReadChannel = writer {
-    try {
-        content.joinTo(channel, closeOnEnd = true)
-    } catch (cause: CancellationException) {
-        this@channelWithCloseHandling.cancel(cause)
-    } finally {
-        this@channelWithCloseHandling.close()
-    }
-}.channel
+): HttpClientCall = TODO()

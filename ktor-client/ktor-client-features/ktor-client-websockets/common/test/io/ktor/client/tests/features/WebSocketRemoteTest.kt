@@ -69,12 +69,12 @@ class WebSocketRemoteTest : ClientLoader() {
         }
 
         test { client ->
-            val session = client.webSocketSession(host = echoWebsocket) {
+            val session = client.webSocket(host = echoWebsocket, request = {
                 url.protocol = URLProtocol.WSS
                 url.port = DEFAULT_PORT
+            }) {
+                close(CloseReason(CloseReason.Codes.NORMAL, "OK"))
             }
-
-            session.close(CloseReason(CloseReason.Codes.NORMAL, "OK"))
         }
     }
 
@@ -85,12 +85,12 @@ class WebSocketRemoteTest : ClientLoader() {
         }
 
         test { client ->
-            val session = client.webSocketSession(host = echoWebsocket) {
+            client.webSocket(host = echoWebsocket, request = {
                 url.protocol = URLProtocol.WSS
                 url.port = DEFAULT_PORT
+            }) {
+                cancel()
             }
-
-            session.cancel()
         }
     }
 

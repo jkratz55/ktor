@@ -9,6 +9,8 @@ import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.response.*
+import io.ktor.client.response.readText
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import org.junit.Test
@@ -68,12 +70,12 @@ class HttpClientTest {
 
         val port = portSync.take()
         val client = HttpClient(CIO)
-        val response = client.call("http://127.0.0.1:$port/") {
+        val response = client.request<HttpStatement>("http://127.0.0.1:$port/") {
             method = HttpMethod.Post
             url.encodedPath = "/url"
             header("header", "value")
             body = "request-body"
-        }.response
+        }.execute()
 
         try {
             assertEquals(HttpStatusCode.OK, response.status)
@@ -87,7 +89,6 @@ class HttpClientTest {
 
             assertEquals("request-body", receivedContentSync.take())
         } finally {
-            response.close()
             client.close()
             th.join()
         }

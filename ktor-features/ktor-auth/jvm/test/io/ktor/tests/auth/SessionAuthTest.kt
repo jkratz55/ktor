@@ -10,7 +10,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.features.cookies.*
 import io.ktor.client.request.*
-import io.ktor.client.response.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -74,7 +74,7 @@ class SessionAuthTest {
                         Cookie("S", autoSerializerOf<MySession>().serialize(MySession(1)), path = "/")
                     )
 
-                    client.get<HttpResponse>("/child/logout").let { response ->
+                    client.get<HttpStatement>("/child/logout").execute { response ->
                         val body = response.receive<String>()
                         println(body)
                         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -85,7 +85,7 @@ class SessionAuthTest {
                         Cookie("S", autoSerializerOf<MySession>().serialize(MySession(1)), path = "/")
                     )
 
-                    client.get<HttpResponse>("logout").let { response ->
+                    client.get<HttpStatement>("logout").execute { response ->
                         val body = response.receive<String>()
                         println(body)
                         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -144,7 +144,7 @@ class SessionAuthTest {
                         Cookie("S", autoSerializerOf<MySession>().serialize(MySession(1)), path = "/")
                     )
 
-                    client.get<HttpResponse>("/child/logout").let { response ->
+                    client.get<HttpStatement>("/child/logout").execute { response ->
                         val body = response.receive<String>()
                         println(body)
                         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -155,7 +155,7 @@ class SessionAuthTest {
                         Cookie("S", autoSerializerOf<MySession>().serialize(MySession(1)), path = "/")
                     )
 
-                    client.get<HttpResponse>("logout").let { response ->
+                    client.get<HttpStatement>("logout").execute { response ->
                         val body = response.receive<String>()
                         println(body)
                         assertEquals(HttpStatusCode.Unauthorized, response.status)

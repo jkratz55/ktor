@@ -8,7 +8,8 @@ import io.ktor.application.*
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import io.ktor.client.response.*
+import io.ktor.client.response.readText
+import io.ktor.client.statement.*
 import io.ktor.http.content.*
 import io.ktor.http.*
 import io.ktor.http.auth.*
@@ -90,14 +91,15 @@ private suspend fun simpleOAuth1aStep1(
         nonce = nonce
     ).sign(HttpMethod.Post, baseUrl, secretKey, extraParameters)
 
-    val response = client.call(URL(baseUrl.appendUrlParameters(extraParameters.formUrlEncode()))) {
+    val url = baseUrl.appendUrlParameters(extraParameters.formUrlEncode())
+
+    val response = client.post<HttpStatement>(url) {
         method = HttpMethod.Post
         header(HttpHeaders.Authorization, authHeader.render(HeaderValueEncoding.URI_ENCODE))
         header(HttpHeaders.Accept, ContentType.Any.toString())
-    }.response
+    }.execute()
 
     val body = response.readText()
-
     try {
         if (response.status != HttpStatusCode.OK) {
             throw IOException("Bad response: $response")
@@ -114,8 +116,6 @@ private suspend fun simpleOAuth1aStep1(
         )
     } catch (e: Throwable) {
         throw IOException("Failed to acquire request token due to $body", e)
-    } finally {
-        response.close()
     }
 }
 
@@ -164,9 +164,7 @@ private suspend fun requestOAuth1aAccessToken(
     val authHeader = createUpgradeRequestTokenHeader(consumerKey, token, nonce)
         .sign(HttpMethod.Post, baseUrl, secretKey, params)
 
-    val response = client.call(URL(baseUrl)) {
-        method = HttpMethod.Post
-
+    val body = client.post<String>(baseUrl) {
         header(HttpHeaders.Authorization, authHeader.render(HeaderValueEncoding.URI_ENCODE))
         header(HttpHeaders.Accept, "*/*")
         // some of really existing OAuth servers don't support other accept header values so keep it
@@ -175,9 +173,8 @@ private suspend fun requestOAuth1aAccessToken(
             { params.formUrlEncodeTo(this) },
             ContentType.Application.FormUrlEncoded
         )
-    }.response
+    }
 
-    val body = response.readText()
     try {
         val parameters = body.parseUrlEncodedParameters()
         return OAuthAccessTokenResponse.OAuth1a(
@@ -189,8 +186,6 @@ private suspend fun requestOAuth1aAccessToken(
         throw cause
     } catch (cause: Throwable) {
         throw IOException("Failed to acquire request token due to $body", cause)
-    } finally {
-        response.close()
     }
 }
 

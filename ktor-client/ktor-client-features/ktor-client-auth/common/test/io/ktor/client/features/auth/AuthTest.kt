@@ -7,6 +7,7 @@ package io.ktor.client.features.auth
 import io.ktor.client.features.auth.providers.*
 import io.ktor.client.request.*
 import io.ktor.client.response.*
+import io.ktor.client.statement.*
 import io.ktor.client.tests.utils.*
 import io.ktor.http.*
 import io.ktor.utils.io.core.*
@@ -25,7 +26,7 @@ class AuthTest : ClientLoader() {
             }
         }
         test { client ->
-            client.get<HttpResponse>("$TEST_SERVER/auth/digest").use {
+            client.get<HttpStatement>("$TEST_SERVER/auth/digest").execute {
                 assertTrue(it.status.isSuccess())
             }
         }

@@ -6,7 +6,9 @@ package io.ktor.client.tests
 
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.request.*
 import io.ktor.client.response.*
+import io.ktor.client.statement.*
 import io.ktor.client.tests.utils.*
 import io.ktor.http.*
 import io.ktor.utils.io.core.*
@@ -21,12 +23,12 @@ class ConnectionTest : ClientLoader() {
     fun testContentLengthWithEmptyBody() = clientTests {
         test { client ->
             repeat(10) {
-                val response = client.call {
+                val response = client.request<HttpStatement> {
                     method = HttpMethod.Head
                     url.takeFrom("$TEST_SERVER/content/emptyHead")
-                }.response
+                }.execute()
 
-                response.use {
+                response.also {
                     assertTrue(it.status.isSuccess())
                     assertTrue(it.readBytes().isEmpty())
                 }
@@ -36,12 +38,12 @@ class ConnectionTest : ClientLoader() {
 
     @Test
     fun testCloseResponseWithConnectionPipeline() = clientTests {
-        suspend fun HttpClient.testCall(): HttpClientCall = call {
+        suspend fun HttpClient.testCall(): HttpStatement = request {
             url.takeFrom("$TEST_SERVER/content/xxx")
         }
 
         test { client ->
-            client.testCall().close()
+            client.testCall().execute()
             assertEquals(testContent, client.testCall().receive())
         }
     }

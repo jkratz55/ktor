@@ -6,9 +6,9 @@ package io.ktor.client.engine.cio
 
 import io.ktor.application.*
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.network.tls.certificates.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -48,7 +48,7 @@ class ConnectErrorsTest {
 
             repeat(5) {
                 try {
-                    client.call("http://localhost:${serverSocket.localPort}/").close()
+                    client.request<HttpStatement>("http://localhost:${serverSocket.localPort}/").execute()
                     fail("Shouldn't reach here")
                 } catch (_: java.net.ConnectException) {
                 }

@@ -13,7 +13,9 @@ import java.net.*
  * Constructs a [HttpClientCall] from this [HttpClient],
  * an [url] and an optional [block] configuring a [HttpRequestBuilder].
  */
-suspend fun HttpClient.call(url: URL, block: HttpRequestBuilder.() -> Unit = {}): HttpClientCall = call {
-    this.url.takeFrom(url)
-    block()
-}
+@Deprecated(
+    "",
+    level = DeprecationLevel.ERROR,
+    replaceWith = ReplaceWith("this.request<HttpStatement>(url, block)", "io.ktor.client.statement.HttpStatement")
+)
+suspend fun HttpClient.call(url: URL, block: HttpRequestBuilder.() -> Unit = {}): HttpClientCall = TODO()

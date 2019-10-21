@@ -18,13 +18,4 @@ kotlin {
             }
         }
     }
-
-//    infra {
-//        shared {
-//            compilations.main.cinterops {
-//                bits { defFile = file("posix/interop/bits.def") }
-//                sockets { defFile = file("posix/interop/sockets.def") }
-//            }
-//        }
-//    }
 }
