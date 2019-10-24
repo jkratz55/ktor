@@ -13,7 +13,7 @@ import kotlinx.coroutines.*
  * Client HTTP timeout feature.
  * [requestTimeout] - request timeout in milliseconds.
  */
-class HttpTimeout(private val requestTimeout: Long, private val connectTimeout: Long, private val socketTimeout: Long) {
+class HttpTimeout(private val requestTimeout: Long?, private val connectTimeout: Long?, private val socketTimeout: Long?) {
     /**
      * [HttpTimeout] configuration that is used during installation
      */
@@ -23,11 +23,11 @@ class HttpTimeout(private val requestTimeout: Long, private val connectTimeout: 
          *
          * Default value is 10000 (10 seconds).
          */
-        var requestTimeout: Long = 10_000
+        var requestTimeout: Long? = null
 
-        var connectTimeout: Long = 10_000
+        var connectTimeout: Long? = null
 
-        var socketTimeout: Long = 10_000
+        var socketTimeout: Long? = null
 
         internal fun build(): HttpTimeout = HttpTimeout(requestTimeout, connectTimeout, socketTimeout)
     }
@@ -53,7 +53,7 @@ class HttpTimeout(private val requestTimeout: Long, private val connectTimeout: 
                     requestTimeout = requestTimeout ?: feature.requestTimeout
 
                     val requestTimeout = requestTimeout ?: feature.requestTimeout
-                    if (requestTimeout != 0L) {
+                    if (requestTimeout != null && requestTimeout != 0L) {
                         val executionContext = context.executionContext!!
                         val killer = launch {
                             delay(requestTimeout)
