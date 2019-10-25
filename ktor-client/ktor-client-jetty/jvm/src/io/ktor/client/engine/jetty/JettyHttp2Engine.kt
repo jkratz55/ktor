@@ -10,7 +10,6 @@ import io.ktor.client.request.*
 import kotlinx.coroutines.*
 import org.eclipse.jetty.http2.client.*
 import org.eclipse.jetty.util.thread.*
-import java.time.*
 import java.util.*
 
 internal class JettyHttp2Engine(
@@ -31,8 +30,11 @@ internal class JettyHttp2Engine(
 
     private fun getJettyClient(data: HttpRequestData): HTTP2Client {
         val httpTimeoutAttributes = data.attributes.getOrNull(HttpTimeoutAttributes.key)
-        return clientCache.computeIfAbsent(httpTimeoutAttributes) {
-            HTTP2Client().apply {
+        synchronized(clientCache) {
+            var res = clientCache[httpTimeoutAttributes]
+            res?.let { return it }
+
+            res = HTTP2Client().apply {
                 addBean(config.sslContextFactory)
                 check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
 
@@ -45,6 +47,9 @@ internal class JettyHttp2Engine(
 
                 start()
             }
+
+            clientCache[httpTimeoutAttributes] = res
+            return res
         }
     }
 
