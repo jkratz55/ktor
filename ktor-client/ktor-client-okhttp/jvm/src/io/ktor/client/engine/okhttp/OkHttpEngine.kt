@@ -18,8 +18,8 @@ import okhttp3.*
 import okhttp3.internal.http.HttpMethod
 import okio.*
 import java.io.*
-import java.time.*
 import java.util.*
+import java.util.concurrent.*
 import kotlin.coroutines.*
 
 @InternalAPI
@@ -49,19 +49,27 @@ class OkHttpEngine(
 
         val requestEngine = if (data.attributes.contains(HttpTimeoutAttributes.key)) {
             val httpTimeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
-            clientCache.computeIfAbsent(httpTimeoutAttributes) {
-                var requestEngineBuilder = engine.newBuilder()
-
-                httpTimeoutAttributes.connectTimeout?.let {
-                    requestEngineBuilder = requestEngineBuilder.connectTimeout(Duration.ofMillis(it))
+            synchronized(clientCache) {
+                var res = clientCache[httpTimeoutAttributes]
+                if (res != null) {
+                    res
                 }
+                else {
+                    var requestEngineBuilder = engine.newBuilder()
 
-                httpTimeoutAttributes.socketTimeout?.let {
-                    requestEngineBuilder = requestEngineBuilder.readTimeout(Duration.ofMillis(it))
-                    requestEngineBuilder = requestEngineBuilder.writeTimeout(Duration.ofMillis(it))
+                    httpTimeoutAttributes.connectTimeout?.let {
+                        requestEngineBuilder = requestEngineBuilder.connectTimeout(it, TimeUnit.MILLISECONDS)
+                    }
+
+                    httpTimeoutAttributes.socketTimeout?.let {
+                        requestEngineBuilder = requestEngineBuilder.readTimeout(it, TimeUnit.MILLISECONDS)
+                        requestEngineBuilder = requestEngineBuilder.writeTimeout(it, TimeUnit.MILLISECONDS)
+                    }
+
+                    res = requestEngineBuilder.build()
+                    clientCache[httpTimeoutAttributes] = res
+                    res
                 }
-
-                requestEngineBuilder.build()
             }
         } else {
             engine
