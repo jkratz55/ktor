@@ -54,7 +54,7 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
                             connectTimeout = if (connectTimeout == 0) {
                                 it.toInt()
                             } else {
-                                min(connectTimeout, it.toInt())
+                                Integer.min(connectTimeout, it.toInt())
                             }
                         }
                     }
