@@ -7,7 +7,6 @@ task iosTest {
 
     doLast {
         def binary = kotlin.targets.iosX64.binaries.getTest('DEBUG').outputFile
-        println("Binary!!!: $binary")
         exec {
             commandLine 'xcrun', 'simctl', 'spawn', device, binary.absolutePath
         }
