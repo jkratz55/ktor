@@ -96,9 +96,7 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
                 // Allow to throw request timeout cancellation exception instead of connect timeout exception.
                 yield()
                 if (cause is SocketTimeoutException) {
-                    throw HttpTimeoutCancellationException(
-                        "Connect timeout has been expired [${connection.connectTimeout} ms]"
-                    )
+                    throw HttpTimeoutCancellationException("Connect timeout has been expired")
                 }
 
                 throw cause
@@ -146,10 +144,8 @@ internal suspend fun OutgoingContent.writeTo(
 }
 
 internal fun HttpURLConnection.content(callScope: CoroutineContext): ByteReadChannel = try {
-    println("A")
     inputStream?.buffered()
 } catch (_: IOException) {
-    println("B")
     errorStream?.buffered()
 }?.toByteReadChannel(context = callScope, pool = KtorDefaultPool) ?: ByteReadChannel.Empty
 

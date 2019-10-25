@@ -21,40 +21,42 @@ internal class CurlClientEngine(override val config: CurlClientEngineConfig) : H
     override val clientContext = SilentSupervisor()
 
     override val dispatcher: CoroutineDispatcher = Dispatchers.Unconfined
-    override val coroutineContext: CoroutineContext = dispatcher + SilentSupervisor()
+    override val coroutineContext: CoroutineContext = dispatcher + clientContext
 
     private val curlProcessor = CurlProcessor(coroutineContext)
 
     override suspend fun execute(
         data: HttpRequestData
     ): HttpResponseData {
-        val callContext = coroutineContext + Job()
-        val requestTime = GMTDate()
+        val callContext = Job(data.executionContext) + coroutineContext
+        return withContext(callContext) {
+            val requestTime = GMTDate()
 
-        val curlRequest = data.toCurlRequest(config)
-        val responseData = curlProcessor.executeRequest(curlRequest)
+            val curlRequest = data.toCurlRequest(config)
+            val responseData = curlProcessor.executeRequest(curlRequest)
 
-        return with(responseData) {
-            val headerBytes = ByteReadChannel(headersBytes).apply {
-                readUTF8Line()
+            with(responseData) {
+                val headerBytes = ByteReadChannel(headersBytes).apply {
+                    readUTF8Line()
+                }
+                val rawHeaders = parseHeaders(headerBytes)
+
+                val body = writer(coroutineContext) {
+                    channel.writeFully(bodyBytes)
+                }.channel
+
+                val status = HttpStatusCode.fromValue(status)
+
+                val headers = buildHeaders {
+                    appendAll(CIOHeaders(rawHeaders))
+                    rawHeaders.release()
+                }
+
+                HttpResponseData(
+                    status, requestTime, headers, version.fromCurl(),
+                    body, callContext
+                )
             }
-            val rawHeaders = parseHeaders(headerBytes)
-
-            val body = writer(coroutineContext) {
-                channel.writeFully(bodyBytes)
-            }.channel
-
-            val status = HttpStatusCode.fromValue(status)
-
-            val headers = buildHeaders {
-                appendAll(CIOHeaders(rawHeaders))
-                rawHeaders.release()
-            }
-
-            HttpResponseData(
-                status, requestTime, headers, version.fromCurl(),
-                body, callContext
-            )
         }
     }
 

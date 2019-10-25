@@ -58,11 +58,8 @@ class HttpTimeout(private val requestTimeout: Long?, private val connectTimeout:
                         val killer = launch {
                             delay(requestTimeout)
                             executionContext.cancel(
-                                HttpTimeoutCancellationException(
-                                    "Request timeout has been expired [$requestTimeout ms]"
-                                )
+                                HttpTimeoutCancellationException("Request timeout has been expired")
                             )
-                            println("Execution context canceled!")
                         }
 
                         context.executionContext!!.invokeOnCompletion {

@@ -117,7 +117,13 @@ internal class ApacheResponseConsumer(
 
     override fun failed(cause: Exception) {
         exception = cause
-        cancel(CancellationException("Fail to execute request", cause))
+        cancel(
+            if (cause is ConnectException) {
+                HttpTimeoutCancellationException("Connect timeout has been expired")
+            } else {
+                CancellationException("Fail to execute request", cause)
+            }
+        )
         releaseContinuation(Result.failure(cause))
     }
 

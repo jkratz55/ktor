@@ -6,10 +6,12 @@ package io.ktor.client.tests
 
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.engine.mock.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.tests.utils.*
 import io.ktor.http.*
+import io.ktor.util.date.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
 import kotlin.reflect.*
@@ -35,8 +37,13 @@ private fun assertContainsCause(expectedCause: KClass<out Throwable>, exception:
 
 private fun TestClientBuilder<*>.testWithTimeout(timeout: Long, block: suspend (client: HttpClient) -> Unit) {
     test = { client ->
-        withTimeout(timeout) {
-            block(client)
+        try {
+            withTimeout(timeout) {
+                block(client)
+            }
+        }
+        catch(e: Throwable) {
+            throw IllegalStateException(e)
         }
     }
 }
@@ -170,26 +177,40 @@ class HttpTimeoutTest : ClientLoader() {
     @Test
     fun connectionTimeoutTest() = clientTests {
         config {
-            install(HttpTimeout) { connectTimeout = 100 }
+            install(HttpTimeout) { requestTimeout = 1000 }
         }
 
         testWithTimeout(5_000) { client ->
+            client.get<String>("http://www.google.com")
+            val start = GMTDate().timestamp
             assertFails {
                 client.get<String>("http://www.google.com:81")
             }
+            val end = GMTDate().timestamp
+            val time = end - start
+            println("Connect timeout took $time ms")
+            assertTrue("Time is $time, expected ~1000.") { time > 1000 }
+            assertTrue("Time is $time, expected ~1000.") { time < 1100 }
         }
     }
 
     @Test
     fun socketTimeoutTest() = clientTests {
         config {
-            install(HttpTimeout) { socketTimeout = 100 }
+            install(HttpTimeout) { requestTimeout = 1000 }
         }
 
         testWithTimeout(5_000) { client ->
+            client.get<String>("http://www.google.com")
+            val start = GMTDate().timestamp
             assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-stream?delay=5000")
             }
+            val end = GMTDate().timestamp
+            val time = end - start
+            println("Socket timeout took $time ms")
+            assertTrue("Time is $time, expected ~1000.") { time > 1000 }
+            assertTrue("Time is $time, expected ~1000.") { time < 1100 }
         }
     }
 }

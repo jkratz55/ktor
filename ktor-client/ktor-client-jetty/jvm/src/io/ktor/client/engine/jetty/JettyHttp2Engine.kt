@@ -40,7 +40,7 @@ internal class JettyHttp2Engine(
                     name = "ktor-jetty-client-qtp"
                 }
 
-                httpTimeoutAttributes?.connectTimeout?.let { connectTimeout = it }
+                httpTimeoutAttributes?.connectTimeout?.let { connectTimeout = if (it == 0L) Long.MAX_VALUE else it }
                 httpTimeoutAttributes?.socketTimeout?.let { idleTimeout = it }
 
                 start()

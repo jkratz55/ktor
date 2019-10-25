@@ -62,7 +62,6 @@ internal suspend fun HTTP2Client.connect(
     // TODO: Move session listener to the right place.
     connect(factory, InetSocketAddress(url.host, url.port), object : Session.Listener.Adapter() {
         override fun onFailure(session: Session?, failure: Throwable?) {
-            println("FAIL, $promise")
             promise.failed(failure)
         }
     }, promise)

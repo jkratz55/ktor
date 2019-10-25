@@ -34,27 +34,30 @@ internal class JsClientEngine(override val config: HttpClientEngineConfig) : Htt
     override suspend fun execute(
         data: HttpRequestData
     ): HttpResponseData {
-        val callContext: CoroutineContext = Job(this@JsClientEngine.coroutineContext[Job]) + dispatcher
+        val callContext: CoroutineContext = Job(data.executionContext) + dispatcher
 
-        if (data.isUpgradeRequest()) {
-            return executeWebSocketRequest(data, callContext)
+        return withContext(callContext) {
+            if (data.isUpgradeRequest()) {
+                executeWebSocketRequest(data, callContext)
+            }
+            else {
+                val requestTime = GMTDate()
+                val rawRequest = data.toRaw(callContext)
+                val rawResponse = fetch(data.url.toString(), rawRequest)
+
+                val status = HttpStatusCode(rawResponse.status.toInt(), rawResponse.statusText)
+                val headers = rawResponse.headers.mapToKtor()
+                val version = HttpProtocolVersion.HTTP_1_1
+
+                HttpResponseData(
+                    status,
+                    requestTime,
+                    headers, version,
+                    readBody(rawResponse, callContext),
+                    callContext
+                )
+            }
         }
-
-        val requestTime = GMTDate()
-        val rawRequest = data.toRaw(callContext)
-        val rawResponse = fetch(data.url.toString(), rawRequest)
-
-        val status = HttpStatusCode(rawResponse.status.toInt(), rawResponse.statusText)
-        val headers = rawResponse.headers.mapToKtor()
-        val version = HttpProtocolVersion.HTTP_1_1
-
-        return HttpResponseData(
-            status,
-            requestTime,
-            headers, version,
-            readBody(rawResponse, callContext),
-            callContext
-        )
     }
 
     private suspend fun executeWebSocketRequest(
