@@ -16,7 +16,6 @@ import io.ktor.utils.io.core.*
  */
 const val TEST_SERVER: String = "http://127.0.0.1:8080"
 const val HTTP_PROXY_SERVER: String = "http://127.0.0.1:8082"
-const val SILENT_SERVER = "http://127.0.0.1:8083"
 
 /**
  * Perform test with selected client [engine].

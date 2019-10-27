@@ -59,12 +59,7 @@ internal suspend fun HTTP2Client.connect(
     url: Url, config: JettyEngineConfig
 ): Session = withPromise { promise ->
     val factory = if (url.protocol.isSecure()) config.sslContextFactory else null
-    // TODO: Move session listener to the right place.
-    connect(factory, InetSocketAddress(url.host, url.port), object : Session.Listener.Adapter() {
-        override fun onFailure(session: Session?, failure: Throwable?) {
-            promise.failed(failure)
-        }
-    }, promise)
+    connect(factory, InetSocketAddress(url.host, url.port), Session.Listener.Adapter(), promise)
 }
 
 private fun HttpRequestData.prepareHeadersFrame(): HeadersFrame {

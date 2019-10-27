@@ -27,12 +27,9 @@ internal fun startServer(): Closeable {
 
     val proxyServer = TestTcpServer(HTTP_PROXY_PORT, ::proxyHandler)
 
-    val silentServer = TestSilentServer(SILENT_PORT)
-
     return Closeable {
         proxyServer.close()
         server.stop(0L, 0L, TimeUnit.MILLISECONDS)
-        silentServer.close()
     }
 }
 
