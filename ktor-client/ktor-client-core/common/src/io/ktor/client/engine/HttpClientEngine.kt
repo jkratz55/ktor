@@ -11,11 +11,16 @@ import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.coroutines.*
 import io.ktor.utils.io.core.*
+import kotlin.coroutines.*
 
 /**
  * Base interface use to define engines for [HttpClient].
  */
 interface HttpClientEngine : CoroutineScope, Closeable {
+    /**
+     * [CoroutineContext] specified for the client.
+     */
+    val clientContext: CoroutineContext
 
     /**
      * [CoroutineDispatcher] specified for io operations.

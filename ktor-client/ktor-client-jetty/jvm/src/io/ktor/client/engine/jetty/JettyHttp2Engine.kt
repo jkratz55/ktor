@@ -6,13 +6,18 @@ package io.ktor.client.engine.jetty
 
 import io.ktor.client.engine.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import kotlinx.coroutines.*
 import org.eclipse.jetty.http2.client.*
 import org.eclipse.jetty.util.thread.*
+import kotlin.coroutines.*
 
 internal class JettyHttp2Engine(
     override val config: JettyEngineConfig
-) : HttpClientJvmEngine("ktor-jetty") {
+) : AbstractHttpClientEngine(
+    "ktor-jetty",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
     private val jettyClient = HTTP2Client().apply {
         addBean(config.sslContextFactory)
         check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
@@ -24,8 +29,10 @@ internal class JettyHttp2Engine(
         start()
     }
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext()
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
         return try {
             data.executeRequest(jettyClient, config, callContext)
         } catch (cause: Throwable) {
@@ -35,8 +42,7 @@ internal class JettyHttp2Engine(
     }
 
     override fun close() {
-        super.close()
-        coroutineContext[Job]?.invokeOnCompletion {
+        closeAndExecuteOnCompletion {
             jettyClient.stop()
         }
     }

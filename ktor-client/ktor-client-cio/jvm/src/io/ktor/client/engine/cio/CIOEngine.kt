@@ -6,25 +6,26 @@ package io.ktor.client.engine.cio
 
 import io.ktor.client.engine.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
-import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.io.*
 import java.net.*
 import java.util.concurrent.*
+import kotlin.coroutines.*
 
-internal class CIOEngine(
-    override val config: CIOEngineConfig
-) : HttpClientJvmEngine("ktor-cio") {
+internal class CIOEngine(override val config: CIOEngineConfig) : AbstractHttpClientEngine(
+    "ktor-cio",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
     private val endpoints = ConcurrentHashMap<String, Endpoint>()
 
     @UseExperimental(InternalCoroutinesApi::class)
     private val selectorManager by lazy { ActorSelectorManager(dispatcher) }
 
     private val connectionFactory = ConnectionFactory(selectorManager, config.maxConnectionsCount)
-    private val closed = atomic(false)
 
     private val proxy = when (val type = config.proxy?.type()) {
         Proxy.Type.DIRECT,
@@ -33,39 +34,32 @@ internal class CIOEngine(
         else -> throw IllegalStateException("Proxy of type $type is unsupported by CIO engine.")
     }
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
         while (true) {
-            if (closed.value) throw ClientClosedException()
+            checkClientEngineIsNotClosed()
 
             val endpoint = selectEndpoint(data.url, proxy)
-            val callContext = createCallContext()
             try {
                 return endpoint.execute(data, callContext)
             } catch (cause: ClosedSendChannelException) {
-                if (closed.value) throw ClientClosedException(cause)
+                checkClientEngineIsNotClosed()
                 (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
                 continue
             } catch (cause: Throwable) {
                 (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
                 throw cause
-            } finally {
-                if (closed.value) endpoint.close()
             }
         }
     }
 
     override fun close() {
-        if (!closed.compareAndSet(false, true)) throw ClientClosedException()
-
-        endpoints.forEach { (_, endpoint) ->
-            endpoint.close()
-        }
-
-        coroutineContext[Job]?.invokeOnCompletion {
+        closeAndExecuteOnCompletion {
+            endpoints.forEach { (_, endpoint) -> endpoint.close() }
             selectorManager.close()
         }
-
-        super.close()
     }
 
     private fun selectEndpoint(url: Url, proxy: ProxyConfig?): Endpoint {
@@ -95,9 +89,6 @@ internal class CIOEngine(
         }
     }
 }
-
-@Suppress("KDocMissingDocumentation")
-class ClientClosedException(override val cause: Throwable? = null) : IllegalStateException("Client already closed")
 
 private fun <K : Any, V : Closeable> ConcurrentHashMap<K, V>.computeIfAbsentWeak(key: K, block: (K) -> V): V {
     get(key)?.let { return it }

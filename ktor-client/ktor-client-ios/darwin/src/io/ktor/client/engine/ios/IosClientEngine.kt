@@ -22,16 +22,15 @@ import platform.Foundation.*
 import platform.darwin.*
 import kotlin.coroutines.*
 
-internal class IosClientEngine(override val config: IosClientEngineConfig) : HttpClientEngine {
+internal class IosClientEngine(override val config: IosClientEngineConfig) : AbstractHttpClientEngine(
+    "ktor-ios",
     // TODO: replace with UI dispatcher
-    override val dispatcher: CoroutineDispatcher = Dispatchers.Unconfined
-
-    override val coroutineContext: CoroutineContext = dispatcher + SilentSupervisor()
-
-    override suspend fun execute(
-        data: HttpRequestData
+    dispatcherInitializer = { Dispatchers.Unconfined }
+) {
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
     ): HttpResponseData = suspendCancellableCoroutine { continuation ->
-        val callContext = coroutineContext + Job()
         val requestTime = GMTDate()
 
         val delegate = object : NSObject(), NSURLSessionDataDelegateProtocol {
@@ -143,10 +142,6 @@ internal class IosClientEngine(override val config: IosClientEngineConfig) : Htt
             kCFProxyPortNumberKey to port,
             kCFProxyTypeKey to type
         )
-    }
-
-    override fun close() {
-        coroutineContext.cancel()
     }
 }
 

@@ -7,6 +7,7 @@ package io.ktor.client.engine.okhttp
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.util.*
@@ -23,8 +24,10 @@ import kotlin.coroutines.*
 @Suppress("KDocMissingDocumentation")
 class OkHttpEngine(
     override val config: OkHttpConfig
-) : HttpClientJvmEngine("ktor-okhttp") {
-
+) : AbstractHttpClientEngine(
+    "ktor-okhttp",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
     private val engine: OkHttpClient = config.preconfigured ?: run {
         val builder = OkHttpClient.Builder()
         builder.apply(config.config)
@@ -33,8 +36,10 @@ class OkHttpEngine(
         builder.build()
     }
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext()
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
         val engineRequest = data.convertToOkHttpRequest(callContext)
 
         return try {
@@ -50,10 +55,7 @@ class OkHttpEngine(
     }
 
     override fun close() {
-        val clientTask = coroutineContext[Job] as CompletableJob
-        clientTask.complete()
-
-        clientTask.invokeOnCompletion {
+        closeAndExecuteOnCompletion {
             GlobalScope.launch(dispatcher) {
                 engine.dispatcher().executorService().shutdown()
                 engine.connectionPool().evictAll()

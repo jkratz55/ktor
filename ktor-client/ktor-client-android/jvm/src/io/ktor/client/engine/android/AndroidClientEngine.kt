@@ -7,6 +7,7 @@ package io.ktor.client.engine.android
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.util.cio.*
@@ -22,12 +23,14 @@ import kotlin.coroutines.*
 /**
  * Android client engine
  */
-class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClientJvmEngine("ktor-android") {
-
-    override suspend fun execute(
-        data: HttpRequestData
+class AndroidClientEngine(override val config: AndroidEngineConfig) : AbstractHttpClientEngine(
+    "ktor-android",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
     ): HttpResponseData {
-        val callContext: CoroutineContext = createCallContext()
         return async(callContext) {
             val requestTime: GMTDate = GMTDate()
 

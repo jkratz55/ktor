@@ -18,14 +18,16 @@ import kotlin.coroutines.*
 
 @Suppress("KDocMissingDocumentation")
 @KtorExperimentalAPI
-class TestHttpClientEngine(override val config: TestHttpClientConfig) : HttpClientEngine {
-    override val dispatcher: CoroutineDispatcher = Dispatchers.IO
-    override val coroutineContext: CoroutineContext = dispatcher
-
+class TestHttpClientEngine(override val config: TestHttpClientConfig) : AbstractHttpClientEngine(
+    "ktor-test",
+    dispatcherInitializer = { Dispatchers.IO }
+) {
     private val app: TestApplicationEngine = config.app
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = coroutineContext + Job()
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
         val testServerCall = with(data) { runRequest(method, url.fullPath, headers, body).response }
 
         return HttpResponseData(
@@ -64,7 +66,9 @@ class TestHttpClientEngine(override val config: TestHttpClientConfig) : HttpClie
     }
 
     override fun close() {
-        app.stop(0L, 0L)
+        closeAndExecuteOnCompletion {
+            app.stop(0L, 0L)
+        }
     }
 
     companion object : HttpClientEngineFactory<TestHttpClientConfig> {
