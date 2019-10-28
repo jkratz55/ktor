@@ -17,7 +17,7 @@ actual fun testSuspend(
 
     val task = launch { block() }
     while (!task.isCompleted) {
-        val date = NSDate().addTimeInterval(1.0) as NSDate
+        val date = NSDate().addTimeInterval(0.01) as NSDate
         NSRunLoop.mainRunLoop.runUntilDate(date)
 
         loop.processNextEvent()
