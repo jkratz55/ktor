@@ -52,9 +52,6 @@ abstract class AbstractHttpClientEngine(
             callJob.completeExceptionally(cause)
             throw cause
         }
-        finally {
-            callJob.complete()
-        }
     }
 
     override fun close() {
