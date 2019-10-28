@@ -7,6 +7,7 @@ package io.ktor.client.engine.cio
 import io.ktor.client.engine.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
 import kotlinx.atomicfu.*
@@ -15,10 +16,14 @@ import kotlinx.coroutines.channels.*
 import java.io.*
 import java.net.*
 import java.util.concurrent.*
+import kotlin.coroutines.*
 
 internal class CIOEngine(
     override val config: CIOEngineConfig
-) : HttpClientJvmEngine("ktor-cio") {
+) : AbstractHttpClientEngine(
+    "ktor-cio",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
     private val endpoints = ConcurrentHashMap<String, Endpoint>()
 
     @UseExperimental(InternalCoroutinesApi::class)
@@ -34,11 +39,13 @@ internal class CIOEngine(
         else -> throw IllegalStateException("Proxy of type $type is unsupported by CIO engine.")
     }
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
         while (true) {
             if (closed.value) throw ClientClosedException()
             val endpoint = selectEndpoint(data.url, proxy)
-            val callContext = createCallContext(data.executionContext)
             try {
                 return endpoint.execute(data, callContext)
             } catch (cause: ClosedSendChannelException) {

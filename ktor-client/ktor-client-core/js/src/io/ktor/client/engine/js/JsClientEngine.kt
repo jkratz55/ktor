@@ -19,44 +19,36 @@ import org.w3c.dom.events.*
 import org.w3c.fetch.Headers
 import kotlin.coroutines.*
 
-internal class JsClientEngine(override val config: HttpClientEngineConfig) : HttpClientEngine {
-
-    override val clientContext = SilentSupervisor()
-
-    override val dispatcher: CoroutineDispatcher = Dispatchers.Default
-
-    override val coroutineContext: CoroutineContext = dispatcher + SilentSupervisor()
-
+internal class JsClientEngine(override val config: HttpClientEngineConfig) : AbstractHttpClientEngine(
+    "ktor-js",
+    dispatcherInitializer = { Dispatchers.Default }
+) {
     init {
         check(config.proxy == null) { "Proxy unsupported in Js engine." }
     }
 
-    override suspend fun execute(
-        data: HttpRequestData
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
     ): HttpResponseData {
-        val callContext: CoroutineContext = Job(data.executionContext) + dispatcher
+        return if (data.isUpgradeRequest()) {
+            executeWebSocketRequest(data, callContext)
+        } else {
+            val requestTime = GMTDate()
+            val rawRequest = data.toRaw(callContext)
+            val rawResponse = fetch(data.url.toString(), rawRequest)
 
-        return withContext(callContext) {
-            if (data.isUpgradeRequest()) {
-                executeWebSocketRequest(data, callContext)
-            }
-            else {
-                val requestTime = GMTDate()
-                val rawRequest = data.toRaw(callContext)
-                val rawResponse = fetch(data.url.toString(), rawRequest)
+            val status = HttpStatusCode(rawResponse.status.toInt(), rawResponse.statusText)
+            val headers = rawResponse.headers.mapToKtor()
+            val version = HttpProtocolVersion.HTTP_1_1
 
-                val status = HttpStatusCode(rawResponse.status.toInt(), rawResponse.statusText)
-                val headers = rawResponse.headers.mapToKtor()
-                val version = HttpProtocolVersion.HTTP_1_1
-
-                HttpResponseData(
-                    status,
-                    requestTime,
-                    headers, version,
-                    readBody(rawResponse, callContext),
-                    callContext
-                )
-            }
+            HttpResponseData(
+                status,
+                requestTime,
+                headers, version,
+                readBody(rawResponse, callContext),
+                callContext
+            )
         }
     }
 
@@ -92,8 +84,6 @@ internal class JsClientEngine(override val config: HttpClientEngineConfig) : Htt
             callContext
         )
     }
-
-    override fun close() {}
 }
 
 private suspend fun WebSocket.awaitConnection(): WebSocket = suspendCancellableCoroutine { continuation ->

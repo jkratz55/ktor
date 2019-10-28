@@ -7,15 +7,19 @@ package io.ktor.client.engine.jetty
 import io.ktor.client.engine.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import kotlinx.coroutines.*
 import org.eclipse.jetty.http2.client.*
 import org.eclipse.jetty.util.thread.*
 import java.util.*
+import kotlin.coroutines.*
 
 internal class JettyHttp2Engine(
     override val config: JettyEngineConfig
-) : HttpClientJvmEngine("ktor-jetty") {
-
+) : AbstractHttpClientEngine(
+    "ktor-jetty",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
     private val clientCache =
         Collections.synchronizedMap(object : LinkedHashMap<HttpTimeoutAttributes, HTTP2Client>(10, 0.75f, true) {
             override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, HTTP2Client>): Boolean {
@@ -53,17 +57,12 @@ internal class JettyHttp2Engine(
         }
     }
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext(data.executionContext)
-        return try {
-            val jettyClient = getJettyClient(data)
-            withContext(callContext) {
-                data.executeRequest(jettyClient, config, callContext)
-            }
-        } catch (cause: Throwable) {
-            (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
-            throw cause
-        }
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
+        val jettyClient = getJettyClient(data)
+        return data.executeRequest(jettyClient, config, callContext)
     }
 
     override fun close() {

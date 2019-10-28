@@ -16,53 +16,48 @@ import kotlinx.coroutines.*
 import io.ktor.utils.io.*
 import kotlin.coroutines.*
 
-internal class CurlClientEngine(override val config: CurlClientEngineConfig) : HttpClientEngine {
-
-    override val clientContext = SilentSupervisor()
-
-    override val dispatcher: CoroutineDispatcher = Dispatchers.Unconfined
-    override val coroutineContext: CoroutineContext = dispatcher + clientContext
-
+internal class CurlClientEngine(override val config: CurlClientEngineConfig) : AbstractHttpClientEngine(
+    "ktor-curl",
+    dispatcherInitializer = { Dispatchers.Unconfined }
+) {
     private val curlProcessor = CurlProcessor(coroutineContext)
 
-    override suspend fun execute(
-        data: HttpRequestData
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
     ): HttpResponseData {
-        val callContext = Job(data.executionContext) + coroutineContext
-        return withContext(callContext) {
-            val requestTime = GMTDate()
+        val requestTime = GMTDate()
 
-            val curlRequest = data.toCurlRequest(config)
-            val responseData = curlProcessor.executeRequest(curlRequest)
+        val curlRequest = data.toCurlRequest(config)
+        val responseData = curlProcessor.executeRequest(curlRequest)
 
-            with(responseData) {
-                val headerBytes = ByteReadChannel(headersBytes).apply {
-                    readUTF8Line()
-                }
-                val rawHeaders = parseHeaders(headerBytes)
-
-                val body = writer(coroutineContext) {
-                    channel.writeFully(bodyBytes)
-                }.channel
-
-                val status = HttpStatusCode.fromValue(status)
-
-                val headers = buildHeaders {
-                    appendAll(CIOHeaders(rawHeaders))
-                    rawHeaders.release()
-                }
-
-                HttpResponseData(
-                    status, requestTime, headers, version.fromCurl(),
-                    body, callContext
-                )
+        return with(responseData) {
+            val headerBytes = ByteReadChannel(headersBytes).apply {
+                readUTF8Line()
             }
+            val rawHeaders = parseHeaders(headerBytes)
+
+            val body = writer(coroutineContext) {
+                channel.writeFully(bodyBytes)
+            }.channel
+
+            val status = HttpStatusCode.fromValue(status)
+
+            val headers = buildHeaders {
+                appendAll(CIOHeaders(rawHeaders))
+                rawHeaders.release()
+            }
+
+            HttpResponseData(
+                status, requestTime, headers, version.fromCurl(),
+                body, callContext
+            )
         }
     }
 
     override fun close() {
         curlProcessor.close()
-        coroutineContext.cancel()
+        super.close()
     }
 }
 

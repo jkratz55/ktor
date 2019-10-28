@@ -8,6 +8,7 @@ import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
+import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.util.*
@@ -26,8 +27,10 @@ import kotlin.coroutines.*
 @Suppress("KDocMissingDocumentation")
 class OkHttpEngine(
     override val config: OkHttpConfig
-) : HttpClientJvmEngine("ktor-okhttp") {
-
+) : AbstractHttpClientEngine(
+    "ktor-okhttp",
+    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+) {
     private val engine: OkHttpClient = config.preconfigured ?: run {
         val builder = OkHttpClient.Builder()
         builder.apply(config.config)
@@ -43,8 +46,10 @@ class OkHttpEngine(
             }
         })
 
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext(data.executionContext)
+    override suspend fun executeWithinCallContext(
+        data: HttpRequestData,
+        callContext: CoroutineContext
+    ): HttpResponseData {
         val engineRequest = data.convertToOkHttpRequest(callContext)
 
         val requestEngine = if (data.attributes.contains(HttpTimeoutAttributes.key)) {
@@ -53,8 +58,7 @@ class OkHttpEngine(
                 var res = clientCache[httpTimeoutAttributes]
                 if (res != null) {
                     res
-                }
-                else {
+                } else {
                     var requestEngineBuilder = engine.newBuilder()
 
                     httpTimeoutAttributes.connectTimeout?.let {
@@ -75,19 +79,10 @@ class OkHttpEngine(
             engine
         }
 
-        println("requestEngine connect timeout: ${requestEngine.connectTimeoutMillis()}")
-
-        return try {
-            withContext(callContext) {
-                if (data.isUpgradeRequest()) {
-                    executeWebSocketRequest(requestEngine, engineRequest, callContext)
-                } else {
-                    executeHttpRequest(requestEngine, engineRequest, callContext)
-                }
-            }
-        } catch (cause: Throwable) {
-            (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
-            throw cause
+        return if (data.isUpgradeRequest()) {
+            executeWebSocketRequest(requestEngine, engineRequest, callContext)
+        } else {
+            executeHttpRequest(requestEngine, engineRequest, callContext)
         }
     }
 
