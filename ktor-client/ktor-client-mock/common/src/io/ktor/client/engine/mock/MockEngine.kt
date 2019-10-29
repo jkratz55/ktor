@@ -12,7 +12,7 @@ import kotlin.coroutines.*
 /**
  * [HttpClientEngine] for writing tests without network.
  */
-class MockEngine(override val config: MockEngineConfig) : AbstractHttpClientEngine(
+class MockEngine(override val config: MockEngineConfig) : HttpClientEngineBase(
     "ktor-mock",
     dispatcherInitializer = { Dispatchers.Unconfined }
 ) {

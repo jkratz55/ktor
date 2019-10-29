@@ -6,12 +6,10 @@ package io.ktor.client.engine.ios
 
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
-import io.ktor.client.engine.ios.toByteArray
 import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.util.*
 import io.ktor.util.date.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
@@ -22,7 +20,7 @@ import platform.Foundation.*
 import platform.darwin.*
 import kotlin.coroutines.*
 
-internal class IosClientEngine(override val config: IosClientEngineConfig) : AbstractHttpClientEngine(
+internal class IosClientEngine(override val config: IosClientEngineConfig) : HttpClientEngineBase(
     "ktor-ios",
     // TODO: replace with UI dispatcher
     dispatcherInitializer = { Dispatchers.Unconfined },

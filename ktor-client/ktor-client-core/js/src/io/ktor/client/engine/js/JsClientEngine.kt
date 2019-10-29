@@ -19,7 +19,7 @@ import org.w3c.dom.events.*
 import org.w3c.fetch.Headers
 import kotlin.coroutines.*
 
-internal class JsClientEngine(override val config: HttpClientEngineConfig) : AbstractHttpClientEngine(
+internal class JsClientEngine(override val config: HttpClientEngineConfig) : HttpClientEngineBase(
     "ktor-js",
     dispatcherInitializer = { Dispatchers.Default }
 ) {

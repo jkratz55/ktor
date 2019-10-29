@@ -17,7 +17,7 @@ import kotlin.coroutines.*
 private const val MAX_CONNECTIONS_COUNT = 1000
 private const val IO_THREAD_COUNT_DEFAULT = 4
 
-internal class ApacheEngine(override val config: ApacheEngineConfig) : AbstractHttpClientEngine(
+internal class ApacheEngine(override val config: ApacheEngineConfig) : HttpClientEngineBase(
     "ktor-apache",
     dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
 ) {

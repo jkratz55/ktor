@@ -5,6 +5,7 @@
 package io.ktor.client.engine
 
 import io.ktor.client.request.*
+import io.ktor.client.utils.AtomicBoolean
 import io.ktor.util.*
 import io.ktor.utils.io.core.*
 import kotlinx.atomicfu.*
@@ -16,7 +17,7 @@ import kotlin.coroutines.*
  * [coroutineContext] as well as proper call context management. Should be considered as the best parent class for
  * custom [HttpClientEngine] implementations.
  */
-abstract class AbstractHttpClientEngine(
+abstract class HttpClientEngineBase(
     private val engineName: String,
     clientContextInitializer: () -> CoroutineContext = { SilentSupervisor() },
     dispatcherInitializer: () -> CoroutineDispatcher = { Dispatchers.Unconfined },
@@ -34,7 +35,7 @@ abstract class AbstractHttpClientEngine(
     /**
      * Flag that identifies that client is closed.
      */
-    private val closed = atomic(false)
+    private val closed = AtomicBoolean(false)
 
     /**
      * Execute [data] request processing that assumed to be made within call context. This method should be implemented

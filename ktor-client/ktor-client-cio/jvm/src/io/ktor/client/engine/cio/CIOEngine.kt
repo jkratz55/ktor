@@ -16,7 +16,7 @@ import java.net.*
 import java.util.concurrent.*
 import kotlin.coroutines.*
 
-internal class CIOEngine(override val config: CIOEngineConfig) : AbstractHttpClientEngine(
+internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngineBase(
     "ktor-cio",
     dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
 ) {

@@ -23,7 +23,7 @@ import kotlin.coroutines.*
 /**
  * Android client engine
  */
-class AndroidClientEngine(override val config: AndroidEngineConfig) : AbstractHttpClientEngine(
+class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClientEngineBase(
     "ktor-android",
     dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
 ) {

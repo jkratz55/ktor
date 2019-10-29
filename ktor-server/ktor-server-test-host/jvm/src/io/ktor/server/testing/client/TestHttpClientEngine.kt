@@ -18,7 +18,7 @@ import kotlin.coroutines.*
 
 @Suppress("KDocMissingDocumentation")
 @KtorExperimentalAPI
-class TestHttpClientEngine(override val config: TestHttpClientConfig) : AbstractHttpClientEngine(
+class TestHttpClientEngine(override val config: TestHttpClientConfig) : HttpClientEngineBase(
     "ktor-test",
     dispatcherInitializer = { Dispatchers.IO }
 ) {

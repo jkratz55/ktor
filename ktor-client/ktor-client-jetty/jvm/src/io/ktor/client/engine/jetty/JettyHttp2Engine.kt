@@ -14,7 +14,7 @@ import kotlin.coroutines.*
 
 internal class JettyHttp2Engine(
     override val config: JettyEngineConfig
-) : AbstractHttpClientEngine(
+) : HttpClientEngineBase(
     "ktor-jetty",
     dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
 ) {

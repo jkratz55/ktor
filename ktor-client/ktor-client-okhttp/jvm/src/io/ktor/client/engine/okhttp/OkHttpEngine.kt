@@ -24,7 +24,7 @@ import kotlin.coroutines.*
 @Suppress("KDocMissingDocumentation")
 class OkHttpEngine(
     override val config: OkHttpConfig
-) : AbstractHttpClientEngine(
+) : HttpClientEngineBase(
     "ktor-okhttp",
     dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
 ) {
