@@ -69,7 +69,7 @@ abstract class AbstractHttpClientEngine(
      * Call [close] method and adds completion handler that will be invoked when the coroutine context completes.
      * This method assumed to be called in subclasses in case of [close] override.
      */
-    protected fun closeAndExecuteOnCompletion(block: () -> Unit) {
+    protected fun closeAndExecuteOnCompletion(block: () -> Unit = {}) {
         checkClientEngineIsNotClosedAndClose()
         closeWithoutCheck()
 
@@ -117,7 +117,12 @@ abstract class AbstractHttpClientEngine(
     private fun closeDispatcher() {
         val dispatcher = dispatcher
         if (dispatcher is Closeable) {
-            dispatcher.close()
+            try {
+                dispatcher.close()
+            }
+            catch(ignore: Throwable) {
+                // Some closeable dispatchers like Dispatchers.IO can't be closed.
+            }
         }
     }
 
