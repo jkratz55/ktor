@@ -56,9 +56,8 @@ internal class CurlClientEngine(override val config: CurlClientEngineConfig) : A
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion {
-            curlProcessor.close()
-        }
+        closeAndExecuteOnCompletion()
+        curlProcessor.close()
     }
 }
 
