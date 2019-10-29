@@ -18,7 +18,8 @@ import kotlin.coroutines.*
 
 internal class CurlClientEngine(override val config: CurlClientEngineConfig) : AbstractHttpClientEngine(
     "ktor-curl",
-    dispatcherInitializer = { Dispatchers.Unconfined }
+    dispatcherInitializer = { Dispatchers.Unconfined },
+    wrapExecutionIntoCallContext = false
 ) {
     private val curlProcessor = CurlProcessor(coroutineContext)
 
@@ -56,8 +57,9 @@ internal class CurlClientEngine(override val config: CurlClientEngineConfig) : A
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion()
-        curlProcessor.close()
+        closeAndExecuteOnCompletion {
+            curlProcessor.close()
+        }
     }
 }
 

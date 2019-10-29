@@ -19,7 +19,8 @@ import kotlin.coroutines.*
 abstract class AbstractHttpClientEngine(
     private val engineName: String,
     clientContextInitializer: () -> CoroutineContext = { SilentSupervisor() },
-    dispatcherInitializer: () -> CoroutineDispatcher = { Dispatchers.Unconfined }
+    dispatcherInitializer: () -> CoroutineDispatcher = { Dispatchers.Unconfined },
+    private val wrapExecutionIntoCallContext: Boolean = true
 ) : HttpClientEngine {
 
     override val clientContext: CoroutineContext by lazy(clientContextInitializer)
@@ -50,7 +51,13 @@ abstract class AbstractHttpClientEngine(
         val callJob = callContext[Job] as CompletableJob
 
         return try {
-            withContext(callContext) {
+            // Such wrapping is impossible on native so far.
+            if (wrapExecutionIntoCallContext) {
+                withContext(callContext) {
+                    executeWithinCallContext(data, callContext)
+                }
+            }
+            else {
                 executeWithinCallContext(data, callContext)
             }
         }

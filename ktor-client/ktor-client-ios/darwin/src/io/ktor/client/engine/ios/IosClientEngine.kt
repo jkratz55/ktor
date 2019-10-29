@@ -25,7 +25,8 @@ import kotlin.coroutines.*
 internal class IosClientEngine(override val config: IosClientEngineConfig) : AbstractHttpClientEngine(
     "ktor-ios",
     // TODO: replace with UI dispatcher
-    dispatcherInitializer = { Dispatchers.Unconfined }
+    dispatcherInitializer = { Dispatchers.Unconfined },
+    wrapExecutionIntoCallContext = false
 ) {
     override suspend fun executeWithinCallContext(
         data: HttpRequestData,
