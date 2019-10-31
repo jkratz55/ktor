@@ -8,7 +8,8 @@ import com.typesafe.config.*
 import io.ktor.application.*
 import io.ktor.config.*
 import io.ktor.server.engine.*
-import org.slf4j.*
+import io.ktor.util.logging.*
+import io.ktor.util.logging.labels.*
 import javax.servlet.*
 import javax.servlet.annotation.*
 
@@ -45,7 +46,7 @@ open class ServletApplicationEngine : KtorServlet() {
 
         applicationEngineEnvironment {
             config = HoconApplicationConfig(combinedConfig)
-            log = LoggerFactory.getLogger(applicationId)
+            log = logger().addName(applicationId)
             classLoader = servletContext.classLoader
             rootPath = servletContext.contextPath ?: "/"
         }.apply {

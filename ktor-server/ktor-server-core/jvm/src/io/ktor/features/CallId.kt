@@ -8,10 +8,9 @@ import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.util.*
+import io.ktor.util.logging.*
 import io.ktor.util.pipeline.*
-import org.slf4j.*
 import kotlin.random.*
-import kotlin.reflect.jvm.*
 
 /**
  * A function that retrieves or generates call id using provided call
@@ -64,9 +63,9 @@ val ApplicationCall.callId: String? get() = attributes.getOrNull(CallId.callIdKe
  * [CallId] feature will be installed to [CallId.phase] into [ApplicationCallPipeline].
  */
 class CallId private constructor(
-        private val providers: Array<CallIdProvider>,
-        private val repliers: Array<(call: ApplicationCall, callId: String) -> Unit>,
-        private val verifier: CallIdVerifier
+    private val providers: Array<CallIdProvider>,
+    private val repliers: Array<(call: ApplicationCall, callId: String) -> Unit>,
+    private val verifier: CallIdVerifier
 ) {
     /**
      * [CallId] feature's configuration
@@ -180,22 +179,21 @@ class CallId private constructor(
         internal val callIdKey = AttributeKey<String>("ExtractedCallId")
 
         override val key: AttributeKey<CallId> = AttributeKey("CallId")
-        private val logger by lazy { LoggerFactory.getLogger(CallId::class.jvmName) }
 
         override fun install(pipeline: ApplicationCallPipeline, configure: Configuration.() -> Unit): CallId {
             val configuration = Configuration().apply(configure)
 
             val instance = CallId(
-                    providers = (configuration.retrievers + configuration.generators).toTypedArray(),
-                    repliers = configuration.responseInterceptors.toTypedArray(),
-                    verifier = configuration.verifier
+                providers = (configuration.retrievers + configuration.generators).toTypedArray(),
+                repliers = configuration.responseInterceptors.toTypedArray(),
+                verifier = configuration.verifier
             )
 
             pipeline.insertPhaseBefore(ApplicationCallPipeline.Setup, phase)
 
             if (instance.providers.isEmpty()) {
-                logger.warn("CallId feature is not configured: neither retrievers nor generators were configured")
-                return instance // don't install interceptor
+                pipeline.afterIntercepted()
+                error("CallId feature is not configured: neither retrievers nor generators were configured")
             }
 
             pipeline.intercept(phase) {
@@ -216,7 +214,8 @@ class CallId private constructor(
                         break
                     }
                 } catch (rejection: RejectedCallIdException) {
-                    logger.warn("Illegal call id retrieved or generated that is rejected by call id verifier:" +
+                    call.application.log.warning(
+                        "Illegal call id retrieved or generated that is rejected by call id verifier:" +
                             " (url-encoded) " +
                             rejection.illegalCallId.encodeURLParameter()
                     )

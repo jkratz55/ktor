@@ -7,10 +7,10 @@ package io.ktor.server.engine
 import io.ktor.application.*
 import io.ktor.config.*
 import io.ktor.http.*
+import io.ktor.util.logging.*
 import io.ktor.util.pipeline.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
-import org.slf4j.*
 import java.io.*
 import java.lang.reflect.*
 import java.net.*
@@ -31,14 +31,14 @@ import kotlin.reflect.jvm.*
  */
 @EngineAPI
 class ApplicationEngineEnvironmentReloading(
-        override val classLoader: ClassLoader,
-        override val log: Logger,
-        override val config: ApplicationConfig,
-        override val connectors: List<EngineConnectorConfig>,
-        private val modules: List<Application.() -> Unit>,
-        private val watchPaths: List<String> = emptyList(),
-        override val parentCoroutineContext: CoroutineContext = EmptyCoroutineContext,
-        override val rootPath: String = ""
+    override val classLoader: ClassLoader,
+    override val log: Logger,
+    override val config: ApplicationConfig,
+    override val connectors: List<EngineConnectorConfig>,
+    private val modules: List<Application.() -> Unit>,
+    private val watchPaths: List<String> = emptyList(),
+    override val parentCoroutineContext: CoroutineContext = EmptyCoroutineContext,
+    override val rootPath: String = ""
 ) : ApplicationEngineEnvironment {
 
     @Suppress("UNUSED")

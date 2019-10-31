@@ -12,8 +12,9 @@ import io.ktor.network.sockets.ServerSocket
 import io.ktor.network.sockets.Socket
 import io.ktor.server.engine.*
 import io.ktor.util.*
+import io.ktor.util.logging.*
+import io.ktor.util.logging.labels.*
 import kotlinx.coroutines.*
-import org.slf4j.*
 import java.nio.channels.*
 import kotlin.coroutines.*
 
@@ -86,7 +87,7 @@ fun CoroutineScope.httpServer(
         settings.connectionIdleTimeoutSeconds * 1000L
     )
 
-    val logger = LoggerFactory.getLogger(HttpServer::class.java)
+    val logger: Logger = logger().forClass<HttpServer>()
 
     val acceptJob = launch(serverJob + CoroutineName("accept-${settings.port}")) {
         aSocket(selector).tcp().bind(settings.host, settings.port).use { server ->
