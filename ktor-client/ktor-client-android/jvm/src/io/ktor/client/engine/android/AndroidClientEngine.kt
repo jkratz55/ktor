@@ -23,14 +23,13 @@ import kotlin.coroutines.*
 /**
  * Android client engine
  */
-class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClientEngineBase(
-    "ktor-android",
-    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
-) {
-    override suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData {
+class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClientEngineBase("ktor-android") {
+
+    override val dispatcher by lazy { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+
+    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+        val callContext = callContext()!!
+
         return async(callContext) {
             val requestTime: GMTDate = GMTDate()
 

@@ -4,16 +4,17 @@
 
 package io.ktor.client.utils
 
+import io.ktor.util.*
 import kotlinx.coroutines.*
 import java.util.concurrent.*
 
 /**
  * Creates [CoroutineDispatcher] based on thread pool of [threadCount] threads.
  */
-fun Dispatchers.fixedThreadPoolDispatcher(threadCount: Int): CoroutineDispatcher {
-    return Executors.newFixedThreadPool(threadCount) {
+@InternalAPI
+fun Dispatchers.fixedThreadPoolDispatcher(threadCount: Int): CoroutineDispatcher =
+    Executors.newFixedThreadPool(threadCount) {
         Thread(it).apply {
             isDaemon = true
         }
     }.asCoroutineDispatcher()
-}

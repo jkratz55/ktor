@@ -14,12 +14,11 @@ import kotlinx.coroutines.channels.*
 import java.io.*
 import java.net.*
 import java.util.concurrent.*
-import kotlin.coroutines.*
 
-internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngineBase(
-    "ktor-cio",
-    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
-) {
+internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngineBase("ktor-cio") {
+
+    override val dispatcher by lazy { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+
     private val endpoints = ConcurrentHashMap<String, Endpoint>()
 
     @UseExperimental(InternalCoroutinesApi::class)
@@ -34,29 +33,28 @@ internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngin
         else -> throw IllegalStateException("Proxy of type $type is unsupported by CIO engine.")
     }
 
-    override suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData {
+    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+        val callContext = callContext()!!
+
         while (true) {
-            checkClientEngineIsNotClosed()
+            if (closed) {
+                throw ClientEngineClosedException()
+            }
 
             val endpoint = selectEndpoint(data.url, proxy)
+
             try {
                 return endpoint.execute(data, callContext)
             } catch (cause: ClosedSendChannelException) {
-                checkClientEngineIsNotClosed()
-                (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
                 continue
-            } catch (cause: Throwable) {
-                (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
-                throw cause
             }
         }
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion {
+        super.close()
+
+        coroutineContext[Job]!!.invokeOnCompletion {
             endpoints.forEach { (_, endpoint) -> endpoint.close() }
             selectorManager.close()
         }

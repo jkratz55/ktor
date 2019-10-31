@@ -12,12 +12,10 @@ import org.eclipse.jetty.http2.client.*
 import org.eclipse.jetty.util.thread.*
 import kotlin.coroutines.*
 
-internal class JettyHttp2Engine(
-    override val config: JettyEngineConfig
-) : HttpClientEngineBase(
-    "ktor-jetty",
-    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
-) {
+internal class JettyHttp2Engine(override val config: JettyEngineConfig) : HttpClientEngineBase("ktor-jetty") {
+
+    override val dispatcher: CoroutineDispatcher by lazy { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+
     private val jettyClient = HTTP2Client().apply {
         addBean(config.sslContextFactory)
         check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
@@ -29,20 +27,15 @@ internal class JettyHttp2Engine(
         start()
     }
 
-    override suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData {
-        return try {
-            data.executeRequest(jettyClient, config, callContext)
-        } catch (cause: Throwable) {
-            (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
-            throw cause
-        }
+    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+        val callContext = callContext()!!
+
+        return data.executeRequest(jettyClient, config, callContext)
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion {
+        super.close()
+        coroutineContext[Job]!!.invokeOnCompletion {
             jettyClient.stop()
         }
     }

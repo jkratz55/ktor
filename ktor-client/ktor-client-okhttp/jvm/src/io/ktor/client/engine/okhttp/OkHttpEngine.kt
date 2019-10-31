@@ -22,12 +22,8 @@ import kotlin.coroutines.*
 
 @InternalAPI
 @Suppress("KDocMissingDocumentation")
-class OkHttpEngine(
-    override val config: OkHttpConfig
-) : HttpClientEngineBase(
-    "ktor-okhttp",
-    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
-) {
+class OkHttpEngine(override val config: OkHttpConfig) : HttpClientEngineBase("ktor-okhttp") {
+    override val dispatcher = Dispatchers.fixedThreadPoolDispatcher(config.threadsCount)
     private val engine: OkHttpClient = config.preconfigured ?: run {
         val builder = OkHttpClient.Builder()
         builder.apply(config.config)
@@ -36,26 +32,21 @@ class OkHttpEngine(
         builder.build()
     }
 
-    override suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData {
+    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+        val callContext = callContext()!!
         val engineRequest = data.convertToOkHttpRequest(callContext)
 
-        return try {
-            if (data.isUpgradeRequest()) {
-                executeWebSocketRequest(engineRequest, callContext)
-            } else {
-                executeHttpRequest(engineRequest, callContext)
-            }
-        } catch (cause: Throwable) {
-            (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
-            throw cause
+        return if (data.isUpgradeRequest()) {
+            executeWebSocketRequest(engineRequest, callContext)
+        } else {
+            executeHttpRequest(engineRequest, callContext)
         }
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion {
+        super.close()
+
+        coroutineContext[Job]!!.invokeOnCompletion {
             GlobalScope.launch(dispatcher) {
                 engine.dispatcher().executorService().shutdown()
                 engine.connectionPool().evictAll()

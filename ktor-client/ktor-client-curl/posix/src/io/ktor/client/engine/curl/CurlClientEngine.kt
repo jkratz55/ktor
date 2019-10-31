@@ -15,17 +15,14 @@ import kotlinx.coroutines.*
 import io.ktor.utils.io.*
 import kotlin.coroutines.*
 
-internal class CurlClientEngine(override val config: CurlClientEngineConfig) : HttpClientEngineBase(
-    "ktor-curl",
-    dispatcherInitializer = { Dispatchers.Unconfined },
-    wrapExecutionIntoCallContext = false
-) {
+internal class CurlClientEngine(override val config: CurlClientEngineConfig) : HttpClientEngineBase("ktor-curl") {
+    override val dispatcher = Dispatchers.Unconfined
+
     private val curlProcessor = CurlProcessor(coroutineContext)
 
-    override suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData {
+    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+        val callContext = callContext()!!
+
         val requestTime = GMTDate()
 
         val curlRequest = data.toCurlRequest(config)
@@ -56,7 +53,9 @@ internal class CurlClientEngine(override val config: CurlClientEngineConfig) : H
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion {
+        super.close()
+
+        coroutineContext[Job]!!.invokeOnCompletion {
             curlProcessor.close()
         }
     }

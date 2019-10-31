@@ -9,19 +9,13 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.util.*
-import kotlinx.coroutines.*
 import io.ktor.utils.io.core.*
-import kotlin.coroutines.*
+import kotlinx.coroutines.*
 
 /**
  * Base interface use to define engines for [HttpClient].
  */
 interface HttpClientEngine : CoroutineScope, Closeable {
-    /**
-     * [CoroutineContext] specified for the client.
-     */
-    val clientContext: CoroutineContext
-
     /**
      * [CoroutineDispatcher] specified for io operations.
      */
@@ -51,7 +45,13 @@ interface HttpClientEngine : CoroutineScope, Closeable {
 
             validateHeaders(requestData)
 
-            val responseData = execute(requestData)
+            val responseData = if (this@HttpClientEngine is HttpClientEngineBase) {
+                executeWithCallContext(requestData)
+            }
+            else {
+                execute(requestData)
+            }
+
             val call = HttpClientCall(client, requestData, responseData)
 
             responseData.callContext[Job]!!.invokeOnCompletion { cause ->

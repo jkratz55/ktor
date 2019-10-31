@@ -5,160 +5,61 @@
 package io.ktor.client.engine
 
 import io.ktor.client.request.*
-import io.ktor.client.utils.AtomicBoolean
+import io.ktor.client.utils.*
 import io.ktor.util.*
 import io.ktor.utils.io.core.*
-import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlin.coroutines.*
 
 /**
- * Abstract implementation of [HttpClientEngine] responsible for lifecycle control of [clientContext], [dispatcher] and
+ * Abstract implementation of [HttpClientEngine] responsible for lifecycle control of [dispatcher] and
  * [coroutineContext] as well as proper call context management. Should be considered as the best parent class for
  * custom [HttpClientEngine] implementations.
  */
-abstract class HttpClientEngineBase(
-    private val engineName: String,
-    clientContextInitializer: () -> CoroutineContext = { SilentSupervisor() },
-    dispatcherInitializer: () -> CoroutineDispatcher = { Dispatchers.Unconfined },
-    private val wrapExecutionIntoCallContext: Boolean = true
-) : HttpClientEngine {
-
-    override val clientContext: CoroutineContext by lazy(clientContextInitializer)
-
-    override val dispatcher: CoroutineDispatcher by lazy(dispatcherInitializer)
+abstract class HttpClientEngineBase(private val engineName: String) : HttpClientEngine {
 
     override val coroutineContext: CoroutineContext by lazy {
-        this.clientContext + this.dispatcher + CoroutineName("$engineName-context")
+        SilentSupervisor() + this.dispatcher + CoroutineName("$engineName-context")
     }
+
+    /**
+     * Flag that identifies that client is closed. For internal usage.
+     */
+    private val _closed = AtomicBoolean(false)
 
     /**
      * Flag that identifies that client is closed.
      */
-    private val closed = AtomicBoolean(false)
+    protected val closed: Boolean
+        get() = _closed.value
 
     /**
      * Execute [data] request processing that assumed to be made within call context. This method should be implemented
      * in engines so that superior code (see [execute]) could control context creation, completion and [data] execution.
      */
-    protected abstract suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData
-
-    @InternalCoroutinesApi
-    override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext(data.executionContext)
-        val callJob = callContext[Job] as CompletableJob
+    internal suspend fun executeWithCallContext(data: HttpRequestData): HttpResponseData {
+        val callContext = createCallContext(data.executionContext, "$engineName-call-context")
 
         return try {
-            // Such wrapping is impossible on native so far.
-            if (wrapExecutionIntoCallContext) {
-                withContext(callContext) {
-                    executeWithinCallContext(data, callContext)
-                }
+            withContext(callContext + KtorCallContextElement(callContext[Job] as CompletableJob)) {
+                execute(data)
             }
-            else {
-                executeWithinCallContext(data, callContext)
-            }
-        }
-        catch (cause: Throwable) {
-            callJob.completeExceptionally(cause)
+        } catch (cause: Throwable) {
+            (callContext[Job] as CompletableJob).completeExceptionally(cause)
             throw cause
         }
     }
 
     override fun close() {
-        checkClientEngineIsNotClosedAndClose()
-        closeWithoutCheck()
-    }
-
-    /**
-     * Call [close] method and adds completion handler that will be invoked when the coroutine context completes.
-     * This method assumed to be called in subclasses in case of [close] override.
-     */
-    protected fun closeAndExecuteOnCompletion(block: () -> Unit = {}) {
-        checkClientEngineIsNotClosedAndClose()
-        closeWithoutCheck()
-
-        coroutineContext[Job]?.invokeOnCompletion {
-            block()
+        if (!_closed.compareAndSet(false, true)) {
+            throw ClientEngineClosedException()
         }
-    }
 
-    /**
-     * Check that this client engine is not closed yet, otherwise throw [ClientClosedException].
-     */
-    protected fun checkClientEngineIsNotClosed() {
-        if (closed.value) {
-            throw ClientClosedException()
-        }
-    }
-
-    /**
-     * Check that this client engine is not closed yet and closes it, otherwise throw [ClientClosedException].
-     */
-    private fun checkClientEngineIsNotClosedAndClose() {
-        if (!closed.compareAndSet(false, true)) {
-            throw ClientClosedException()
-        }
-    }
-
-    /**
-     * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
-     * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
-     * call coroutine's name is $engineName-call-context.
-     */
-    @InternalCoroutinesApi
-    private suspend fun createCallContext(parentJob: Job): CoroutineContext {
-        val callJob = Job(parentJob)
-        val callContext = coroutineContext + callJob + CoroutineName("$engineName-call-context")
-
-        bindCallJobWithUserJob(callJob)
-
-        return callContext
-    }
-
-    /**
-     * Close [dispatcher] if it's [Closeable].
-     */
-    private fun closeDispatcher() {
-        val dispatcher = dispatcher
-        if (dispatcher is Closeable) {
-            try {
+        (coroutineContext[Job] as CompletableJob).apply {
+            complete()
+            invokeOnCompletion {
                 dispatcher.close()
             }
-            catch(ignore: Throwable) {
-                // Some closeable dispatchers like Dispatchers.IO can't be closed.
-            }
-        }
-    }
-
-    /**
-     * Close this client engine without checking if it's already closed.
-     */
-    private fun closeWithoutCheck() {
-        val job = clientContext[Job] as CompletableJob
-
-        job.complete()
-        job.invokeOnCompletion { closeDispatcher() }
-    }
-
-    /**
-     * TODO: This logic inherited from HttpClientJvmEngine, we need to check if it's actually needed.
-     * Bind [callJob] with user job using the following logic: when job completes with exception, [callJob] completes
-     * with exception too.
-     */
-    @InternalCoroutinesApi
-    private suspend fun bindCallJobWithUserJob(callJob: Job) {
-        currentContext()[Job]?.let { userJob ->
-            val onUserCancelCleanupHandle = userJob.invokeOnCompletion(onCancelling = true) { cause ->
-                if (cause != null) {
-                    callJob.cancel(CancellationException(cause.message))
-                }
-            }
-
-            callJob.invokeOnCompletion { onUserCancelCleanupHandle.dispose() }
         }
     }
 }
@@ -166,9 +67,67 @@ abstract class HttpClientEngineBase(
 /**
  * Exception that indicates that client engine is already closed.
  */
-class ClientClosedException(override val cause: Throwable? = null) : IllegalStateException("Client already closed")
+class ClientEngineClosedException(override val cause: Throwable? = null) :
+    IllegalStateException("Client already closed")
 
 /**
- * Util function that returns current user coroutine context.
+ * Returns current call context if exists, otherwise null.
  */
-private suspend inline fun currentContext() = coroutineContext
+@InternalAPI
+suspend fun callContext(): CoroutineContext? = coroutineContext[KtorCallContextElement]?.let {
+    coroutineContext + it.callJob
+}
+
+/**
+ * Coroutine context element containing call job.
+ */
+private class KtorCallContextElement(val callJob: CompletableJob) : CoroutineContext.Element {
+    override val key: CoroutineContext.Key<*>
+        get() = KtorCallContextElement
+
+    companion object : CoroutineContext.Key<KtorCallContextElement>
+}
+
+/**
+ * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
+ * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
+ * call coroutine's name is $engineName-call-context.
+ */
+private suspend fun createCallContext(parentJob: Job, coroutineName: String): CoroutineContext {
+    val callJob = Job(parentJob)
+    val callContext = coroutineContext + callJob + CoroutineName(coroutineName)
+
+    attachToUserJob(callJob)
+
+    return callContext
+}
+
+/**
+ * Attach [callJob] to user job using the following logic: when user job completes with exception, [callJob] completes
+ * with exception too.
+ */
+@UseExperimental(InternalCoroutinesApi::class)
+private suspend inline fun attachToUserJob(callJob: Job) {
+    val userJob = coroutineContext[Job]!!
+
+    val cleanupHandler = userJob.invokeOnCompletion(onCancelling = true) { cause ->
+        if (cause == null) {
+            return@invokeOnCompletion
+        }
+
+        callJob.cancel(CancellationException(cause.message))
+    }
+
+    callJob.invokeOnCompletion {
+        cleanupHandler.dispose()
+    }
+}
+
+/**
+ * Close [dispatcher] if it's [Closeable].
+ */
+private fun CoroutineDispatcher.close() = try {
+    (this as? Closeable)?.close()
+} catch (ignore: Throwable) {
+    // Some closeable dispatchers like Dispatchers.IO can't be closed.
+}

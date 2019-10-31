@@ -17,22 +17,23 @@ import kotlin.coroutines.*
 private const val MAX_CONNECTIONS_COUNT = 1000
 private const val IO_THREAD_COUNT_DEFAULT = 4
 
-internal class ApacheEngine(override val config: ApacheEngineConfig) : HttpClientEngineBase(
-    "ktor-apache",
-    dispatcherInitializer = { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
-) {
+internal class ApacheEngine(override val config: ApacheEngineConfig) : HttpClientEngineBase("ktor-apache") {
+
+    override val dispatcher by lazy { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount) }
+
     private val engine: CloseableHttpAsyncClient = prepareClient().apply { start() }
 
-    override suspend fun executeWithinCallContext(
-        data: HttpRequestData,
-        callContext: CoroutineContext
-    ): HttpResponseData {
+    override suspend fun execute(data: HttpRequestData): HttpResponseData {
+        val callContext = callContext()!!
+
         val apacheRequest = ApacheRequestProducer(data, config, callContext)
         return engine.sendRequest(apacheRequest, callContext)
     }
 
     override fun close() {
-        closeAndExecuteOnCompletion {
+        super.close()
+
+        coroutineContext[Job]!!.invokeOnCompletion {
             engine.close()
         }
     }
