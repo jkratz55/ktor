@@ -24,36 +24,36 @@ class UnsupportedUpgradeProtocolException(
  * with the specified HTTP request [builder].
  */
 @Deprecated(
-    "",
+    "Unbound [HttpClientCall] is deprecated. Consider using [HttpStatement] instead.",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith("this.request<HttpStatement>(builder)", "io.ktor.client.statement.HttpStatement")
 )
-suspend fun HttpClient.call(builder: HttpRequestBuilder): HttpClientCall = TODO()
+suspend fun HttpClient.call(builder: HttpRequestBuilder): HttpClientCall = error("")
 
 /**
  * Constructs a [HttpClientCall] from this [HttpClient],
  * an [url] and an optional [block] configuring a [HttpRequestBuilder].
  */
 @Deprecated(
-    "",
+    "Unbound [HttpClientCall] is deprecated. Consider using [HttpStatement] instead.",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith("this.request<HttpStatement>(urlString, block)", "io.ktor.client.statement.HttpStatement")
 )
 suspend fun HttpClient.call(
     urlString: String,
     block: suspend HttpRequestBuilder.() -> Unit = {}
-): HttpClientCall = TODO()
+): HttpClientCall = error("")
 
 /**
  * Constructs a [HttpClientCall] from this [HttpClient],
  * an [url] and an optional [block] configuring a [HttpRequestBuilder].
  */
 @Deprecated(
-    "",
+    "Unbound [HttpClientCall] is deprecated. Consider using [HttpStatement] instead.",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith("this.request<HttpStatement>(url, block)", "io.ktor.client.statement.HttpStatement")
 )
 suspend fun HttpClient.call(
     url: Url,
     block: suspend HttpRequestBuilder.() -> Unit = {}
-): HttpClientCall = TODO()
+): HttpClientCall = error("")

@@ -34,4 +34,10 @@ open class HttpClientEngineConfig {
      */
     @KtorExperimentalAPI
     var proxy: ProxyConfig? = null
+
+    @Deprecated(
+        "Response config is deprecated. See [HttpPlainText] feature for charset configuration",
+        level = DeprecationLevel.ERROR
+    )
+    val response: Unit get() = error("")
 }

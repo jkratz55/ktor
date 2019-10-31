@@ -11,26 +11,33 @@ import kotlin.coroutines.*
 
 
 @Deprecated(
-    "",
+    "Unbound [HttpResponse] is deprecated. Consider using [HttpStatement] instead.",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith("HttpStatement", "io.ktor.client.statement.HttpStatement")
 )
 class HttpResponse : CoroutineScope, HttpMessage {
     override val coroutineContext: CoroutineContext
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
+        get() = error("")
     override val headers: Headers
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
+        get() = error("")
 }
 
 @Suppress("DEPRECATION_ERROR")
+@Deprecated(
+    "Unbound [HttpResponse] is deprecated. Consider using [HttpStatement] instead.",
+    level = DeprecationLevel.ERROR
+)
 suspend fun HttpResponse.readText(charset: Charset? = null): String {
-    TODO()
+    error("")
 }
 
 /**
  * Exactly reads [count] bytes of the [HttpResponse.content].
  */
-@Deprecated("")
+@Deprecated(
+    "Unbound [HttpResponse] is deprecated. Consider using [HttpStatement] instead.",
+    level = DeprecationLevel.ERROR
+)
 @Suppress("DEPRECATION_ERROR")
 suspend fun HttpResponse.readBytes(count: Int): ByteArray = TODO()
 
@@ -38,14 +45,20 @@ suspend fun HttpResponse.readBytes(count: Int): ByteArray = TODO()
  * Reads the whole [HttpResponse.content] if Content-Length was specified.
  * Otherwise it just reads one byte.
  */
-@Deprecated("")
+@Deprecated(
+    "Unbound [HttpResponse] is deprecated. Consider using [HttpStatement] instead.",
+    level = DeprecationLevel.ERROR
+)
 @Suppress("DEPRECATION_ERROR")
 suspend fun HttpResponse.readBytes(): ByteArray = TODO()
 
 /**
  * Efficiently discards the remaining bytes of [HttpResponse.content].
  */
-@Deprecated("")
+@Deprecated(
+    "Unbound [HttpResponse] is deprecated. Consider using [HttpStatement] instead.",
+    level = DeprecationLevel.ERROR
+)
 @Suppress("DEPRECATION_ERROR")
 suspend fun HttpResponse.discardRemaining() {
     TODO()

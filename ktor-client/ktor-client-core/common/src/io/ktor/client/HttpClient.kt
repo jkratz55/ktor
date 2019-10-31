@@ -10,9 +10,9 @@ import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.util.*
+import io.ktor.utils.io.core.*
 import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
-import io.ktor.utils.io.core.*
 import kotlin.coroutines.*
 
 /**
@@ -73,8 +73,7 @@ class HttpClient(
     /**
      * Pipeline used for processing all the responses sent by the server.
      */
-    val responsePipeline: HttpResponsePipeline =
-        HttpResponsePipeline()
+    val responsePipeline: HttpResponsePipeline = HttpResponsePipeline()
 
     /**
      * Pipeline used for sending the request.
@@ -84,8 +83,7 @@ class HttpClient(
     /**
      * Pipeline used for receiving request.
      */
-    val receivePipeline: HttpReceivePipeline =
-        HttpReceivePipeline()
+    val receivePipeline: HttpReceivePipeline = HttpReceivePipeline()
 
     /**
      * Typed attributes used as a lightweight container for this client.
@@ -141,9 +139,12 @@ class HttpClient(
      */
 
     @Deprecated(
-        "",
+        "Unbound [HttpClientCall] is deprecated. Consider using [HttpStatement] instead.",
         level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("this.request<HttpStatement>(builder).execute()", "io.ktor.client.statement.HttpStatement")
+        replaceWith = ReplaceWith(
+            "this.request<HttpStatement>(builder).execute()",
+            "io.ktor.client.statement.HttpStatement"
+        )
     )
     @InternalAPI
     suspend fun execute(builder: HttpRequestBuilder): HttpClientCall =

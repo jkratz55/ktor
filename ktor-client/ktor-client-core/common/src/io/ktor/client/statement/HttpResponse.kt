@@ -51,11 +51,11 @@ abstract class HttpResponse : HttpMessage, CoroutineScope {
 }
 
 
-@Deprecated("", replaceWith = ReplaceWith("this"))
+@Deprecated("Close is obsolete for [HttpResponse]", replaceWith = ReplaceWith("this"))
 fun HttpResponse.close() {
 }
 
-@Deprecated("", replaceWith = ReplaceWith("this.also(block)"))
+@Deprecated("Use is obsolete for [HttpResponse]", replaceWith = ReplaceWith("this.also(block)"))
 fun HttpResponse.use(block: () -> Unit) {
 }
 

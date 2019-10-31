@@ -117,7 +117,7 @@ data class HttpEngineCall(val request: HttpRequest, val response: HttpResponse)
  * configured inside the [block].
  */
 @Deprecated(
-    "",
+    "Unbound [HttpClientCall] is deprecated. Use [HttpStatement] in request method instead.",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith(
         "this.request<HttpStatement>(block)",

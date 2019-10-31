@@ -16,7 +16,7 @@ import io.ktor.http.cio.websocket.*
 @UseExperimental(WebSocketInternalAPI::class)
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "TODO",
+    message = "Unbound [DefaultClientWebSocketSession] is deprecated. Consider using [webSocketSession] with block body.",
     replaceWith = ReplaceWith("this.webSocket(block) { }")
 )
 suspend fun HttpClient.webSocketSession(block: HttpRequestBuilder.() -> Unit): DefaultClientWebSocketSession = request {
@@ -29,16 +29,13 @@ suspend fun HttpClient.webSocketSession(block: HttpRequestBuilder.() -> Unit): D
 @UseExperimental(WebSocketInternalAPI::class)
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "TODO",
+    message = "Unbound [DefaultClientWebSocketSession] is deprecated. Consider using [webSocketSession] with block.",
     replaceWith = ReplaceWith("this.webSocket(method, host, port, path, block) { }")
 )
 suspend fun HttpClient.webSocketSession(
     method: HttpMethod = HttpMethod.Get, host: String = "localhost", port: Int = DEFAULT_PORT, path: String = "/",
     block: HttpRequestBuilder.() -> Unit = {}
-): DefaultClientWebSocketSession = error("") /*
- webSocketSession {
-}
-*/
+): DefaultClientWebSocketSession = error("")
 
 /**
  * Open [block] with [DefaultClientWebSocketSession].
@@ -46,7 +43,6 @@ suspend fun HttpClient.webSocketSession(
 suspend fun HttpClient.webSocket(
     request: HttpRequestBuilder.() -> Unit, block: suspend DefaultClientWebSocketSession.() -> Unit
 ) {
-
     val session = request<HttpStatement> {
         url {
             protocol = URLProtocol.WS

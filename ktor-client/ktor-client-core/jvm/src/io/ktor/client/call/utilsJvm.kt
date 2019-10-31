@@ -14,7 +14,7 @@ import java.net.*
  * an [url] and an optional [block] configuring a [HttpRequestBuilder].
  */
 @Deprecated(
-    "",
+    "Unbound [HttpClientCall] is deprecated. Consider using [HttpStatement] instead.",
     level = DeprecationLevel.ERROR,
     replaceWith = ReplaceWith("this.request<HttpStatement>(url, block)", "io.ktor.client.statement.HttpStatement")
 )
