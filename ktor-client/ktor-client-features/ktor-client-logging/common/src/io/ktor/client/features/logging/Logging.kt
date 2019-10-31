@@ -13,18 +13,27 @@ import io.ktor.client.response.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.util.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
+import kotlin.jvm.*
 
 /**
  * [HttpClient] logging feature.
+ *
+ * @property logger to log call info to
+ * @property level what should be logged
  */
 class Logging(
-    val logger: Logger,
+    val logger: io.ktor.util.logging.Logger,
     var level: LogLevel
 ) {
+    @Suppress("DEPRECATION")
+    @Deprecated("Use ktor utils logger instead.")
+    constructor(logger: Logger, level: LogLevel) : this(AdapterLogger(logger), level)
+
     /**
      * [Logging] feature configuration
      */
@@ -32,7 +41,19 @@ class Logging(
         /**
          * [Logger] instance to use
          */
-        var logger: Logger = Logger.DEFAULT
+        @get:JvmName("getNewLogger")
+        @set:JvmName("setNewLogger")
+        var logger: io.ktor.util.logging.Logger = io.ktor.util.logging.Logger.Default
+
+        @Suppress("KDocMissingDocumentation", "unused", "DEPRECATION")
+        @get:JvmName("getLogger")
+        @set:JvmName("setLogger")
+        @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
+        var deprecatedLogger: Logger
+            get() = AdapterLogger(logger)
+            set(newLogger) {
+                logger = AdapterLogger(newLogger)
+            }
 
         /**
          * log [LogLevel]
@@ -42,8 +63,8 @@ class Logging(
 
     private suspend fun logRequest(request: HttpRequestBuilder) {
         if (level.info) {
-            logger.log("REQUEST: ${Url(request.url)}")
-            logger.log("METHOD: ${request.method}")
+            logger.info("REQUEST: ${Url(request.url)}")
+            logger.info("METHOD: ${request.method}")
         }
         val content = request.body as OutgoingContent
         if (level.headers) logHeaders(request.headers.entries(), content.headers)
@@ -52,9 +73,9 @@ class Logging(
 
     private suspend fun logResponse(response: HttpResponse): Unit = response.use {
         if (level.info) {
-            logger.log("RESPONSE: ${response.status}")
-            logger.log("METHOD: ${response.call.request.method}")
-            logger.log("FROM: ${response.call.request.url}")
+            logger.info("RESPONSE: ${response.status}")
+            logger.info("METHOD: ${response.call.request.method}")
+            logger.info("FROM: ${response.call.request.url}")
         }
 
         if (level.headers) logHeaders(response.headers.entries())
@@ -67,12 +88,12 @@ class Logging(
 
     private fun logRequestException(context: HttpRequestBuilder, cause: Throwable) {
         if (!level.info) return
-        logger.log("REQUEST ${Url(context.url)} failed with exception: $cause")
+        logger.info("REQUEST ${Url(context.url)} failed with exception: $cause")
     }
 
     private fun logResponseException(context: HttpClientCall, cause: Throwable) {
         if (!level.info) return
-        logger.log("RESPONSE ${context.request.url} failed with exception: $cause")
+        logger.info("RESPONSE ${context.request.url} failed with exception: $cause")
     }
 
     private fun logHeaders(
@@ -80,33 +101,33 @@ class Logging(
         contentHeaders: Headers? = null
     ) {
         with(logger) {
-            log("COMMON HEADERS")
+            info("COMMON HEADERS")
             requestHeaders.forEach { (key, values) ->
-                log("-> $key: ${values.joinToString("; ")}")
+                info("-> $key: ${values.joinToString("; ")}")
             }
 
             contentHeaders ?: return@with
 
-            log("CONTENT HEADERS")
+            info("CONTENT HEADERS")
             contentHeaders.forEach { key, values ->
-                log("-> $key: ${values.joinToString("; ")}")
+                info("-> $key: ${values.joinToString("; ")}")
             }
         }
     }
 
     private suspend fun logResponseBody(contentType: ContentType?, content: ByteReadChannel) {
         with(logger) {
-            log("BODY Content-Type: $contentType")
-            log("BODY START")
+            info("BODY Content-Type: $contentType")
+            info("BODY START")
             val message = content.readText(contentType?.charset() ?: Charsets.UTF_8)
-            log(message)
-            log("BODY END")
+            info(message)
+            info("BODY END")
         }
     }
 
     private suspend fun logRequestBody(content: OutgoingContent) {
         with(logger) {
-            log("BODY Content-Type: ${content.contentType}")
+            info("BODY Content-Type: ${content.contentType}")
 
             val charset = content.contentType?.charset() ?: Charsets.UTF_8
 
@@ -125,9 +146,9 @@ class Logging(
                 is OutgoingContent.ByteArrayContent -> String(content.bytes(), charset = charset)
                 else -> null
             }
-            log("BODY START")
-            text?.let { log(it) }
-            log("BODY END")
+            info("BODY START")
+            text?.let { info(it) }
+            info("BODY END")
         }
     }
 
@@ -179,6 +200,7 @@ class Logging(
 /**
  * Configure and install [Logging] in [HttpClient].
  */
+@Suppress("FunctionName")
 fun HttpClientConfig<*>.Logging(block: Logging.Config.() -> Unit = {}) {
     install(Logging, block)
 }
