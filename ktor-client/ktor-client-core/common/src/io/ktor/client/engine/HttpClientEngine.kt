@@ -65,14 +65,9 @@ interface HttpClientEngine : CoroutineScope, Closeable {
     private suspend fun executeWithinCallContext(requestData: HttpRequestData): HttpResponseData {
         val callContext = createCallContext(requestData.executionContext)
 
-        return try {
-            withContext(callContext + KtorCallContextElement(callContext[Job] as CompletableJob)) {
-                execute(requestData)
-            }
-        } catch (cause: Throwable) {
-            (callContext[Job] as CompletableJob).completeExceptionally(cause)
-            throw cause
-        }
+        return async(callContext + KtorCallContextElement(callContext[Job] as CompletableJob)) {
+            execute(requestData)
+        }.await()
     }
 }
 
@@ -143,10 +138,7 @@ private suspend inline fun attachToUserJob(callJob: Job) {
     val userJob = coroutineContext[Job]!!
 
     val cleanupHandler = userJob.invokeOnCompletion(onCancelling = true) { cause ->
-        if (cause == null) {
-            return@invokeOnCompletion
-        }
-
+        cause ?: return@invokeOnCompletion
         callJob.cancel(CancellationException(cause.message))
     }
 
