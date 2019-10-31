@@ -11,6 +11,7 @@ import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
+import kotlin.coroutines.*
 
 /**
  * Base interface use to define engines for [HttpClient].
@@ -45,13 +46,7 @@ interface HttpClientEngine : CoroutineScope, Closeable {
 
             validateHeaders(requestData)
 
-            val responseData = if (this@HttpClientEngine is HttpClientEngineBase) {
-                executeWithCallContext(requestData)
-            }
-            else {
-                execute(requestData)
-            }
-
+            val responseData = executeWithinCallContext(requestData)
             val call = HttpClientCall(client, requestData, responseData)
 
             responseData.callContext[Job]!!.invokeOnCompletion { cause ->
@@ -61,6 +56,22 @@ interface HttpClientEngine : CoroutineScope, Closeable {
             }
 
             proceedWith(call)
+        }
+    }
+
+    /**
+     * Create call context and use it as a coroutine context to [execute] request.
+     */
+    private suspend fun executeWithinCallContext(requestData: HttpRequestData): HttpResponseData {
+        val callContext = createCallContext(requestData.executionContext)
+
+        return try {
+            withContext(callContext + KtorCallContextElement(callContext[Job] as CompletableJob)) {
+                execute(requestData)
+            }
+        } catch (cause: Throwable) {
+            (callContext[Job] as CompletableJob).completeExceptionally(cause)
+            throw cause
         }
     }
 }
@@ -88,6 +99,59 @@ fun <T : HttpClientEngineConfig> HttpClientEngineFactory<T>.config(nested: T.() 
             nested()
             block()
         }
+    }
+}
+
+/**
+ * Returns current call context if exists, otherwise null.
+ */
+@InternalAPI
+suspend fun callContext(): CoroutineContext? = coroutineContext[KtorCallContextElement]?.let {
+    coroutineContext + it.callJob
+}
+
+/**
+ * Coroutine context element containing call job.
+ */
+private class KtorCallContextElement(val callJob: CompletableJob) : CoroutineContext.Element {
+    override val key: CoroutineContext.Key<*>
+        get() = KtorCallContextElement
+
+    companion object : CoroutineContext.Key<KtorCallContextElement>
+}
+
+/**
+ * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
+ * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
+ * call coroutine's name is $engineName-call-context.
+ */
+private suspend fun createCallContext(parentJob: Job): CoroutineContext {
+    val callJob = Job(parentJob)
+    val callContext = coroutineContext + callJob + CoroutineName("call-context")
+
+    attachToUserJob(callJob)
+
+    return callContext
+}
+
+/**
+ * Attach [callJob] to user job using the following logic: when user job completes with exception, [callJob] completes
+ * with exception too.
+ */
+@UseExperimental(InternalCoroutinesApi::class)
+private suspend inline fun attachToUserJob(callJob: Job) {
+    val userJob = coroutineContext[Job]!!
+
+    val cleanupHandler = userJob.invokeOnCompletion(onCancelling = true) { cause ->
+        if (cause == null) {
+            return@invokeOnCompletion
+        }
+
+        callJob.cancel(CancellationException(cause.message))
+    }
+
+    callJob.invokeOnCompletion {
+        cleanupHandler.dispose()
     }
 }
 

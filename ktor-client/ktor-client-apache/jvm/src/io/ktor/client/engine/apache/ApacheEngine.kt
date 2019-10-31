@@ -12,7 +12,6 @@ import org.apache.http.*
 import org.apache.http.impl.nio.client.*
 import org.apache.http.impl.nio.reactor.*
 import java.net.*
-import kotlin.coroutines.*
 
 private const val MAX_CONNECTIONS_COUNT = 1000
 private const val IO_THREAD_COUNT_DEFAULT = 4

@@ -4,7 +4,6 @@
 
 package io.ktor.client.engine
 
-import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.util.*
 import io.ktor.utils.io.core.*
@@ -33,23 +32,6 @@ abstract class HttpClientEngineBase(private val engineName: String) : HttpClient
     protected val closed: Boolean
         get() = _closed.value
 
-    /**
-     * Execute [data] request processing that assumed to be made within call context. This method should be implemented
-     * in engines so that superior code (see [execute]) could control context creation, completion and [data] execution.
-     */
-    internal suspend fun executeWithCallContext(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext(data.executionContext, "$engineName-call-context")
-
-        return try {
-            withContext(callContext + KtorCallContextElement(callContext[Job] as CompletableJob)) {
-                execute(data)
-            }
-        } catch (cause: Throwable) {
-            (callContext[Job] as CompletableJob).completeExceptionally(cause)
-            throw cause
-        }
-    }
-
     override fun close() {
         if (!_closed.compareAndSet(false, true)) {
             throw ClientEngineClosedException()
@@ -71,60 +53,7 @@ class ClientEngineClosedException(override val cause: Throwable? = null) :
     IllegalStateException("Client already closed")
 
 /**
- * Returns current call context if exists, otherwise null.
- */
-@InternalAPI
-suspend fun callContext(): CoroutineContext? = coroutineContext[KtorCallContextElement]?.let {
-    coroutineContext + it.callJob
-}
-
-/**
- * Coroutine context element containing call job.
- */
-private class KtorCallContextElement(val callJob: CompletableJob) : CoroutineContext.Element {
-    override val key: CoroutineContext.Key<*>
-        get() = KtorCallContextElement
-
-    companion object : CoroutineContext.Key<KtorCallContextElement>
-}
-
-/**
- * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
- * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
- * call coroutine's name is $engineName-call-context.
- */
-private suspend fun createCallContext(parentJob: Job, coroutineName: String): CoroutineContext {
-    val callJob = Job(parentJob)
-    val callContext = coroutineContext + callJob + CoroutineName(coroutineName)
-
-    attachToUserJob(callJob)
-
-    return callContext
-}
-
-/**
- * Attach [callJob] to user job using the following logic: when user job completes with exception, [callJob] completes
- * with exception too.
- */
-@UseExperimental(InternalCoroutinesApi::class)
-private suspend inline fun attachToUserJob(callJob: Job) {
-    val userJob = coroutineContext[Job]!!
-
-    val cleanupHandler = userJob.invokeOnCompletion(onCancelling = true) { cause ->
-        if (cause == null) {
-            return@invokeOnCompletion
-        }
-
-        callJob.cancel(CancellationException(cause.message))
-    }
-
-    callJob.invokeOnCompletion {
-        cleanupHandler.dispose()
-    }
-}
-
-/**
- * Close [dispatcher] if it's [Closeable].
+ * Close [CoroutineDispatcher] if it's [Closeable].
  */
 private fun CoroutineDispatcher.close() = try {
     (this as? Closeable)?.close()
