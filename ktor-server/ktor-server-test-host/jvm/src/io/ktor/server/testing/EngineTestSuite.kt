@@ -18,13 +18,13 @@ import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.util.*
 import io.ktor.util.cio.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.streams.*
 import org.junit.runners.model.*
-import org.slf4j.*
 import java.io.*
 import java.net.*
 import java.nio.*
@@ -126,13 +126,9 @@ abstract class EngineTestSuite<TEngine : ApplicationEngine, TConfiguration : App
         val message = "expected, ${Random().nextLong()}"
         val collected = LinkedBlockingQueue<Throwable>()
 
-        val log = object : Logger by LoggerFactory.getLogger("ktor.test") {
-            override fun error(message: String, exception: Throwable?) {
-                if (exception != null) {
-                    collected.add(exception)
-                }
-            }
-        }
+        val log = logger(ErrorsCollectorAppender {
+            it.exception?.let { collected.add(it) }
+        })
 
         createAndStartServer(log) {
             get("/") {
