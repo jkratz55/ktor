@@ -69,6 +69,20 @@ interface HttpClientEngine : CoroutineScope, Closeable {
             execute(requestData)
         }.await()
     }
+
+    /**
+     * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
+     * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
+     * call coroutine's name is "call-context".
+     */
+    private suspend fun createCallContext(parentJob: Job): CoroutineContext {
+        val callJob = Job(parentJob)
+        val callContext = this@HttpClientEngine.coroutineContext + callJob + CoroutineName("call-context")
+
+        attachToUserJob(callJob)
+
+        return callContext
+    }
 }
 
 

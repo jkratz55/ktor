@@ -66,20 +66,6 @@ internal class KtorCallContextElement(val callJob: CompletableJob) : CoroutineCo
 }
 
 /**
- * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
- * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
- * call coroutine's name is $engineName-call-context.
- */
-internal suspend fun createCallContext(parentJob: Job): CoroutineContext {
-    val callJob = Job(parentJob)
-    val callContext = coroutineContext + callJob + CoroutineName("call-context")
-
-    attachToUserJob(callJob)
-
-    return callContext
-}
-
-/**
  * Attach [callJob] to user job using the following logic: when user job completes with exception, [callJob] completes
  * with exception too.
  */
