@@ -98,56 +98,6 @@ fun <T : HttpClientEngineConfig> HttpClientEngineFactory<T>.config(nested: T.() 
 }
 
 /**
- * Returns current call context if exists, otherwise null.
- */
-@InternalAPI
-suspend fun callContext(): CoroutineContext? = coroutineContext[KtorCallContextElement]?.let {
-    coroutineContext + it.callJob
-}
-
-/**
- * Coroutine context element containing call job.
- */
-private class KtorCallContextElement(val callJob: CompletableJob) : CoroutineContext.Element {
-    override val key: CoroutineContext.Key<*>
-        get() = KtorCallContextElement
-
-    companion object : CoroutineContext.Key<KtorCallContextElement>
-}
-
-/**
- * Create call context with the specified [parentJob] to be used during call execution in the engine. Call context
- * inherits [coroutineContext], but overrides job and coroutine name so that call job's parent is [parentJob] and
- * call coroutine's name is $engineName-call-context.
- */
-private suspend fun createCallContext(parentJob: Job): CoroutineContext {
-    val callJob = Job(parentJob)
-    val callContext = coroutineContext + callJob + CoroutineName("call-context")
-
-    attachToUserJob(callJob)
-
-    return callContext
-}
-
-/**
- * Attach [callJob] to user job using the following logic: when user job completes with exception, [callJob] completes
- * with exception too.
- */
-@UseExperimental(InternalCoroutinesApi::class)
-private suspend inline fun attachToUserJob(callJob: Job) {
-    val userJob = coroutineContext[Job]!!
-
-    val cleanupHandler = userJob.invokeOnCompletion(onCancelling = true) { cause ->
-        cause ?: return@invokeOnCompletion
-        callJob.cancel(CancellationException(cause.message))
-    }
-
-    callJob.invokeOnCompletion {
-        cleanupHandler.dispose()
-    }
-}
-
-/**
  * Validates request headers and fails if there are unsafe headers supplied
  */
 private fun validateHeaders(request: HttpRequestData) {

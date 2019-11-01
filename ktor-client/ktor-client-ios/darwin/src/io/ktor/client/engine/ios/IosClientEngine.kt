@@ -21,7 +21,7 @@ import platform.darwin.*
 import kotlin.coroutines.*
 
 internal class IosClientEngine(override val config: IosClientEngineConfig) : HttpClientEngineBase("ktor-ios") {
-
+    // TODO: replace with UI dispatcher
     override val dispatcher = Dispatchers.Unconfined
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
